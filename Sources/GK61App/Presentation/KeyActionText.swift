@@ -25,17 +25,21 @@ struct ModifierChoice: Identifiable {
 enum KeyActionText {
     /// Compact form for a keycap, such as `⌘C`.
     static func symbol(for action: KeyAction) -> String {
+        if case .macro = action { return macroSymbol }
         let modifiers = heldModifiers(of: action).map(\.symbol).joined()
         return modifiers + usages(of: action).map { KeyUsage.named($0)?.symbol ?? hex($0) }.joined()
     }
 
     /// Spelled-out form, such as `Left Command + C`.
     static func name(for action: KeyAction) -> String {
+        if case .macro = action { return "a macro" }
         let modifiers = heldModifiers(of: action).map(\.name)
         let keys = usages(of: action).map { KeyUsage.named($0)?.name ?? "Usage \(hex($0))" }
         let parts = modifiers + keys
         return parts.isEmpty ? "Nothing" : parts.joined(separator: " + ")
     }
+
+    static let macroSymbol = "⏺"
 
     private static func heldModifiers(of action: KeyAction) -> [ModifierChoice] {
         ModifierChoice.all.filter { action.modifiers.contains($0.mask) }

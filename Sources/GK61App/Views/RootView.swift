@@ -54,13 +54,14 @@ struct RootView: View {
         case .keys:
             KeysPage(
                 keys: store.layout.keys, keyActions: store.draftKeyActions, pendingKeyIDs: store.pendingKeyIDs,
+                macros: store.macros, macroSources: store.draftMacroSources,
                 selectedKeyID: $store.selectedKeyID, editing: keyEditing)
         case .lighting:
             LightingPage(
                 lighting: store.draftLighting, keys: store.layout.keys,
                 hasEverApplied: store.applied.lighting != nil, editing: lightingEditing)
         case .macros:
-            MacrosPage()
+            MacrosPage(macros: store.macros, keyLabels: keyLabels(playing:), editing: macroEditing)
         case .device:
             DevicePage(
                 connection: store.connection, lastAppliedAt: store.applied.appliedAt,
@@ -100,7 +101,22 @@ struct RootView: View {
             assignUsage: { store.assign(usage: $1, to: $0) },
             setModifiers: { store.setModifiers($1, for: $0) },
             resetToDefault: store.resetToDefault,
-            resetAllToDefault: store.resetAllKeysToDefault)
+            resetAllToDefault: store.resetAllKeysToDefault,
+            assignMacro: { store.assignMacro($1, to: $0) },
+            setPlayback: { store.setPlayback($1, for: $0) },
+            openMacros: { section = .macros })
+    }
+
+    private var macroEditing: MacroEditingActions {
+        MacroEditingActions(
+            create: store.createMacro,
+            rename: { store.renameMacro($0, to: $1) },
+            setSteps: { store.setSteps($1, ofMacro: $0) },
+            delete: store.deleteMacro)
+    }
+
+    private func keyLabels(playing id: MacroDefinition.ID) -> [String] {
+        store.keys(playing: id).map(\.label)
     }
 
     private var lightingEditing: LightingEditingActions {

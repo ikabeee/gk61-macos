@@ -1,4 +1,5 @@
 import Foundation
+import GK61Core
 
 /// An error shown to the user with what happened and how to recover.
 struct OperationFailure: Identifiable {
@@ -31,6 +32,36 @@ struct OperationFailure: Identifiable {
             title: "Couldn't Read the Saved Configuration",
             message: error.localizedDescription,
             recovery: "GK61 starts from the firmware defaults. The saved file is replaced the next time you apply.",
+            offersReconnect: false)
+    }
+
+    static func macroTooLong(_ name: String, _ error: any Error) -> OperationFailure {
+        let detail = if case let MacroError.bodyTooLong(byteCount) = error {
+            "“\(name)” needs \(byteCount) bytes; the keyboard stores at most 512 per macro."
+        } else {
+            error.localizedDescription
+        }
+        return OperationFailure(
+            title: "Macro Too Long for the Keyboard",
+            message: detail,
+            recovery: "Remove some steps on the Macros page, then assign it again.",
+            offersReconnect: false)
+    }
+
+    static func macroLibraryLoadFailed(_ error: any Error) -> OperationFailure {
+        OperationFailure(
+            title: "Couldn't Read Your Macros",
+            message: error.localizedDescription,
+            recovery: "GK61 starts with an empty macro library. The file is replaced when you change a macro.",
+            offersReconnect: false)
+    }
+
+    static func macroLibrarySaveFailed(_ error: any Error) -> OperationFailure {
+        OperationFailure(
+            title: "Couldn't Save Your Macros",
+            message: error.localizedDescription,
+            recovery: "Your latest macro edits may be missing next launch. "
+                + "Check that your Application Support folder is writable.",
             offersReconnect: false)
     }
 }

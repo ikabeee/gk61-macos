@@ -7,12 +7,18 @@ struct KeyEditingActions {
     let setModifiers: (KeyLayout.Key, ModifierMask) -> Void
     let resetToDefault: (KeyLayout.Key) -> Void
     let resetAllToDefault: () -> Void
+    let assignMacro: (KeyLayout.Key, MacroDefinition.ID) -> Void
+    let setPlayback: (KeyLayout.Key, MacroPlayback) -> Void
+    let openMacros: () -> Void
 }
 
 struct KeysPage: View {
     let keys: [KeyLayout.Key]
     let keyActions: [Int: KeyAction]
     let pendingKeyIDs: Set<KeyLayout.Key.ID>
+    let macros: [MacroDefinition]
+    /// The library macro each macro key plays, by key ID.
+    let macroSources: [KeyLayout.Key.ID: MacroDefinition.ID]
     @Binding var selectedKeyID: KeyLayout.Key.ID?
     let editing: KeyEditingActions
     @State private var showsInspector = true
@@ -29,7 +35,9 @@ struct KeysPage: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle("Keys")
         .inspector(isPresented: $showsInspector) {
-            KeyInspector(key: selectedKey, action: selectedKey.map(keyActions.effectiveAction(of:)), editing: editing)
+            KeyInspector(
+                key: selectedKey, action: selectedKey.map(keyActions.effectiveAction(of:)), macros: macros,
+                macroID: selectedKey.flatMap { macroSources[$0.id] }, editing: editing)
                 .inspectorColumnWidth(min: 260, ideal: 300, max: 420)
         }
         .toolbar {
@@ -45,7 +53,7 @@ struct KeysPage: View {
     private var footer: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Click a key to choose what it sends. Tinted keys are remapped; an arrow shows their new action.")
+                Text("Click a key to choose what it sends: another key, a combination or a macro. Tinted keys are remapped.")
                 Text("Changes stay pending until you click Apply. Fn can't be remapped.")
                     .foregroundStyle(.secondary)
             }
@@ -73,6 +81,13 @@ struct KeysPage: View {
             caption: key.label,
             detail: "→ " + KeyActionText.symbol(for: action),
             isEmphasized: true,
-            help: "\(key.label) sends \(KeyActionText.name(for: action))\(pendingNote)")
+            help: "\(key.label) \(actionDescription(of: key, action))\(pendingNote)")
+    }
+
+    private func actionDescription(of key: KeyLayout.Key, _ action: KeyAction) -> String {
+        guard let name = macros.first(where: { $0.id == macroSources[key.id] })?.name else {
+            return "sends \(KeyActionText.name(for: action))"
+        }
+        return "plays the macro “\(name)”"
     }
 }

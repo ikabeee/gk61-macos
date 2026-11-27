@@ -18,6 +18,11 @@ extension KeyAction {
         return secondUsage
     }
 
+    var macroPlayback: MacroPlayback? {
+        guard case let .macro(macro) = self else { return nil }
+        return macro.playback
+    }
+
     /// HID usages E0–E7 are the eight modifier keys.
     static func isModifierUsage(_ usage: UInt8) -> Bool {
         (0xE0...0xE7).contains(usage)

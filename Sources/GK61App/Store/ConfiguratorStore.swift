@@ -14,19 +14,27 @@ final class ConfiguratorStore {
     private(set) var applied: AppliedConfiguration
     private(set) var draftKeyActions: [Int: KeyAction]
     private(set) var draftLighting: Lighting
+    /// The library macro each macro key in the draft plays, by matrix index.
+    private(set) var draftMacroSources: [Int: UUID]
+    private(set) var macros: [MacroDefinition]
     var selectedKeyID: KeyLayout.Key.ID?
     var failure: OperationFailure?
 
     @ObservationIgnored private var session: KeyboardSession?
     @ObservationIgnored private let configurationFile: ConfigurationFile
+    @ObservationIgnored let macroLibraryFile: MacroLibraryFile
 
-    init(layout: KeyLayout, configurationFile: ConfigurationFile) {
+    init(layout: KeyLayout, configurationFile: ConfigurationFile, macroLibraryFile: MacroLibraryFile) {
         self.layout = layout
         self.configurationFile = configurationFile
+        self.macroLibraryFile = macroLibraryFile
         applied = .nothingApplied
         draftKeyActions = [:]
+        draftMacroSources = [:]
         draftLighting = Self.initialLighting
+        macros = []
         restoreAppliedConfiguration()
+        restoreMacroLibrary()
     }
 
     // MARK: Status
@@ -85,6 +93,7 @@ final class ConfiguratorStore {
 
     func revert() {
         draftKeyActions = applied.keyActions
+        draftMacroSources = applied.macroSources
         draftLighting = lightingBaseline
     }
 
@@ -101,8 +110,12 @@ final class ConfiguratorStore {
         guard !pendingKeyIDs.isEmpty else { return }
         applyStep = .keymap
         let actions = draftKeyActions
+        let sources = draftMacroSources
         try await session.applyKeymap(layout, actions: actions)
-        recordApplied { $0.keyActions = actions }
+        recordApplied {
+            $0.keyActions = actions
+            $0.macroSources = sources
+        }
     }
 
     private func recordApplied(_ change: (inout AppliedConfiguration) -> Void) {
@@ -142,10 +155,12 @@ final class ConfiguratorStore {
 
     func resetToDefault(_ key: KeyLayout.Key) {
         draftKeyActions[key.id] = nil
+        draftMacroSources[key.id] = nil
     }
 
     func resetAllKeysToDefault() {
         draftKeyActions = [:]
+        draftMacroSources = [:]
     }
 
     /// Stores only real changes: the firmware default and an empty action both mean "no entry".
@@ -153,6 +168,7 @@ final class ConfiguratorStore {
         let isEmpty = action.modifiers.isEmpty && action.usage == 0
         let isDefault = action == .firmwareDefault(of: key)
         draftKeyActions[key.id] = isEmpty || isDefault || key.isFn ? nil : action
+        draftMacroSources[key.id] = nil
     }
 
     // MARK: Lighting editing
@@ -207,6 +223,96 @@ final class ConfiguratorStore {
     private static let pauseBetweenOperations = Duration.milliseconds(100)
     private static let initialLighting = Lighting(
         mode: LightingMode.named("Wave spectrum") ?? LightingMode.all[0], speed: 2, brightness: 4, color: .rainbow)
+}
+
+/// The macro library and the keys that play its macros. A key holds a copy of its macro's steps;
+/// editing a library macro updates every draft key that plays it, so the change shows up as pending.
+extension ConfiguratorStore {
+    // MARK: Library
+
+    func createMacro() -> MacroDefinition.ID {
+        let macro = MacroDefinition(name: nextMacroName(), steps: [])
+        macros.append(macro)
+        saveMacroLibrary()
+        return macro.id
+    }
+
+    func renameMacro(_ id: MacroDefinition.ID, to name: String) {
+        updateMacro(id) { $0.name = name }
+    }
+
+    func setSteps(_ steps: [MacroStep], ofMacro id: MacroDefinition.ID) {
+        updateMacro(id) { $0.steps = steps }
+        for key in keys(playing: id) {
+            guard let playback = draftKeyActions[key.id]?.macroPlayback else { continue }
+            setMacroDraft(id, playback: playback, for: key)
+        }
+    }
+
+    /// Keys that played the deleted macro go back to their default action in the draft.
+    func deleteMacro(_ id: MacroDefinition.ID) {
+        for key in keys(playing: id) {
+            resetToDefault(key)
+        }
+        macros.removeAll { $0.id == id }
+        saveMacroLibrary()
+    }
+
+    func keys(playing id: MacroDefinition.ID) -> [KeyLayout.Key] {
+        layout.keys.filter { draftMacroSources[$0.id] == id }
+    }
+
+    // MARK: Key assignment
+
+    /// A key that already plays a macro keeps its playback mode; otherwise it plays the macro once.
+    func assignMacro(_ id: MacroDefinition.ID, to key: KeyLayout.Key) {
+        setMacroDraft(id, playback: draftKeyActions[key.id]?.macroPlayback ?? .repeatCount(1), for: key)
+    }
+
+    func setPlayback(_ playback: MacroPlayback, for key: KeyLayout.Key) {
+        guard let id = draftMacroSources[key.id] else { return }
+        setMacroDraft(id, playback: playback, for: key)
+    }
+
+    private func setMacroDraft(_ id: MacroDefinition.ID, playback: MacroPlayback, for key: KeyLayout.Key) {
+        guard !key.isFn, let definition = macros.first(where: { $0.id == id }) else { return }
+        do {
+            draftKeyActions[key.id] = .macro(try Macro(playback: playback, steps: definition.steps))
+            draftMacroSources[key.id] = id
+        } catch {
+            failure = .macroTooLong(definition.name, error)
+        }
+    }
+
+    // MARK: Persistence
+
+    private func restoreMacroLibrary() {
+        do {
+            macros = try macroLibraryFile.load()
+        } catch {
+            failure = .macroLibraryLoadFailed(error)
+        }
+    }
+
+    private func updateMacro(_ id: MacroDefinition.ID, _ change: (inout MacroDefinition) -> Void) {
+        guard let index = macros.firstIndex(where: { $0.id == id }) else { return }
+        change(&macros[index])
+        saveMacroLibrary()
+    }
+
+    private func saveMacroLibrary() {
+        do {
+            try macroLibraryFile.save(macros)
+        } catch {
+            failure = .macroLibrarySaveFailed(error)
+        }
+    }
+
+    private func nextMacroName() -> String {
+        let names = Set(macros.map(\.name))
+        let number = (1...).first { !names.contains("Macro \($0)") } ?? macros.count + 1
+        return "Macro \(number)"
+    }
 }
 
 enum ApplyStep {

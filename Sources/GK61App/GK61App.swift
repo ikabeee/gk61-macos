@@ -32,7 +32,7 @@ enum AppLaunch {
     @MainActor
     static func start() -> AppLaunch {
         do {
-            return .ready(ConfiguratorStore(layout: try KeyLayout.gk61(), configurationFile: .standard))
+            return .ready(ConfiguratorStore(layout: try KeyLayout.gk61(), configurationFile: .standard, macroLibraryFile: .standard))
         } catch {
             return .failed(error.localizedDescription)
         }
