@@ -35,3 +35,4 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - L3 User choices: stack "Native Swift/SwiftUI"; UI "Native macOS"; location "El port dejalo en mis repositories de documentos".
 - L5 Device check: GetPSD over IOHIDDeviceSetReport returned `A0 02 00 01 0F 0B …` → board matches the `00F7-2` Cfg (PSD 0x0f,0x0b). Use that Cfg for layout and LED options.
 - L6 Packaged GK61.app needs its own Input Monitoring grant (the Terminal's grant doesn't carry over). Macros page is a placeholder until T6 lands; the app's saved-config format doesn't yet store macro actions.
+- L7 12ea309 (macros) review assess: medium, review_due=false (under_budget) — pending in the open slice. App saved-config format does not store macro actions yet; Macros page still a placeholder.
