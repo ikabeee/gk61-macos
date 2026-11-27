@@ -1,5 +1,6 @@
 import AppKit
 import GK61Core
+import GK61Storage
 import SwiftUI
 
 @main

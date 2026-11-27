@@ -1,5 +1,6 @@
 import Foundation
 import GK61Core
+import GK61Storage
 import GK61HID
 import Observation
 
