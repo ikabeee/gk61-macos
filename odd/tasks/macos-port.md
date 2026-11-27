@@ -23,9 +23,9 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T3 | S1 | Core: command framing + device info query | inline | done | RED→GREEN 3 tests; device replied PSD 0F 0B via probe |
 | T4 | S1 | Core: layout resource + normal-layer key matrix (Fn layer left untouched in v1) | inline | done | RED→GREEN 6 tests (layout, matrix framing, modifier/key remap, applyKeymap) |
 | T5 | S1 | Core: lighting modes, brightness, speed, colors | inline | done | RED→GREEN 5 tests (mode catalog 1–31, palette/rainbow byte, per-key custom modes, applyLighting) |
-| T6 | S1 | Core: macros | inline | pending | |
-| T7 | S2, S3 | SwiftUI app | inline | pending | |
-| T8 | S2 | .app bundle packaging script | inline | pending | |
+| T6 | S1, S5 | Core: macros | delegated writer (parallel units, disjoint surfaces) | in-progress | |
+| T7 | S2, S3 | SwiftUI app | delegated writer (parallel units, disjoint surfaces) | done | 7961f8e; build 0 warnings; parent viewed Keys/inspector, Lighting, Device in the packaged app; Apply never pressed |
+| T8 | S2 | .app bundle packaging script | delegated with T7 | done | 7961f8e; scripts/build-app.sh → build/GK61.app, codesign verify ok |
 
 ## Log
 
@@ -34,3 +34,4 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - L4 Test seams agreed with the user: packet encoders, keyboard session (fake transport), layout loading. IOKit adapter is verified by hand with gk61-probe.
 - L3 User choices: stack "Native Swift/SwiftUI"; UI "Native macOS"; location "El port dejalo en mis repositories de documentos".
 - L5 Device check: GetPSD over IOHIDDeviceSetReport returned `A0 02 00 01 0F 0B …` → board matches the `00F7-2` Cfg (PSD 0x0f,0x0b). Use that Cfg for layout and LED options.
+- L6 Packaged GK61.app needs its own Input Monitoring grant (the Terminal's grant doesn't carry over). Macros page is a placeholder until T6 lands; the app's saved-config format doesn't yet store macro actions.
