@@ -24,5 +24,15 @@ public enum ArrowMode {
         return [enter.matrixIndex: .remap(toUsage: toggleUsage)]
     }
 
+    /// What the keyboard shows in arrow mode: the four arrow keys in white, the rest dark. The firmware
+    /// has no temporary LED command, so this is a saved custom mode; the last slot leaves custom modes 1–6
+    /// to the user.
+    public static func lighting(for layout: KeyLayout) -> Lighting {
+        let arrowKeys = layout.keys.filter { key in key.defaultUsage.map { arrowUsages[$0] != nil } ?? false }
+        let colors = Dictionary(uniqueKeysWithValues: arrowKeys.map { ($0.matrixIndex, RGBColor.white) })
+        return Lighting(mode: lightingMode, speed: 0, brightness: 4, color: .perKey(colors))
+    }
+
     private static let enterUsage: UInt8 = 0x28
+    private static let lightingMode = LightingMode.custom(LightingMode.customModeCount)
 }

@@ -56,6 +56,14 @@ struct OperationFailure: Identifiable {
             offersReconnect: true)
     }
 
+    static func arrowLightingFailed(_ error: any Error) -> OperationFailure {
+        OperationFailure(
+            title: "Arrow Mode Is On, but the Lights Didn't Change",
+            message: DeviceErrorText.describe(error),
+            recovery: "The keys still switched. Reconnect the keyboard; GK61 updates the lights when it connects.",
+            offersReconnect: true)
+    }
+
     static func loginItemFailed(_ error: any Error) -> OperationFailure {
         OperationFailure(
             title: "Couldn't Change Open at Login",

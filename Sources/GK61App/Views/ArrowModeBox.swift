@@ -20,7 +20,7 @@ struct ArrowModeBox: View {
                 Toggle(isOn: isOnBinding) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Arrow Mode").font(.headline)
-                        Text("/ sends ↑, Right Alt ←, App ↓ and Right Ctrl →; hold Fn for the original key.")
+                        Text("/ sends ↑, Right Alt ←, App ↓ and Right Ctrl →; hold Fn for the original key. Those four keys light up white while it's on.")
                             .foregroundStyle(.secondary)
                     }
                 }

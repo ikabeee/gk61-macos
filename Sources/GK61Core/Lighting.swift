@@ -32,6 +32,7 @@ public struct RGBColor: Hashable, Sendable {
     }
 
     public static let black = RGBColor(red: 0, green: 0, blue: 0)
+    public static let white = RGBColor(red: 0xFF, green: 0xFF, blue: 0xFF)
 }
 
 /// The firmware's fixed palette, in wire order.
@@ -89,8 +90,13 @@ public struct LightingMode: Hashable, Sendable, Identifiable {
         LightingMode(number: 0x16, name: "Game mode 3", hasSpeed: false, colorStyle: .palette),
         LightingMode(number: 0x17, name: "Game mode 4", hasSpeed: false, colorStyle: .palette),
         LightingMode(number: 0x18, name: "Game mode 5", hasSpeed: false, colorStyle: .palette),
-    ] + (1...7).map { custom in
-        LightingMode(number: 0x18 + UInt8(custom), name: "Custom mode \(custom)", hasSpeed: false, colorStyle: .perKey)
+    ] + (1...customModeCount).map(custom)
+
+    public static let customModeCount: UInt8 = 7
+
+    /// Custom mode 1…7: per-key colors, hardware modes 0x19…0x1F.
+    public static func custom(_ number: UInt8) -> LightingMode {
+        LightingMode(number: 0x18 + number, name: "Custom mode \(number)", hasSpeed: false, colorStyle: .perKey)
     }
 }
 

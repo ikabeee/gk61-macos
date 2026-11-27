@@ -24,6 +24,7 @@ final class ConfiguratorStore {
 
     @ObservationIgnored private var session: KeyboardSession?
     @ObservationIgnored private var arrowToggleListener: KeyPressListener?
+    @ObservationIgnored fileprivate var arrowLightingWrite: Task<Void, Never>?
     @ObservationIgnored private let configurationFile: ConfigurationFile
     @ObservationIgnored let macroLibraryFile: MacroLibraryFile
 
@@ -69,6 +70,7 @@ final class ConfiguratorStore {
         do {
             connection = .connected(try await openSession())
             listenForArrowToggle()
+            showArrowModeOnKeyboard()
         } catch {
             connection = ConnectionState(connectionError: error)
         }
@@ -107,6 +109,7 @@ final class ConfiguratorStore {
         applyStep = .lighting
         let lighting = draftLighting
         try await session.applyLighting(lighting)
+        keyboardShowsArrowLighting = false
         recordApplied { $0.lighting = lighting }
         try await Task.sleep(for: Self.pauseBetweenOperations)
     }
@@ -332,6 +335,7 @@ extension ConfiguratorStore {
 
     func toggleArrowMode() {
         applyArrowMode(!isArrowModeOn)
+        showArrowModeOnKeyboard()
     }
 
     /// Writes the applied keymap again with Fn+Enter added; unapplied key changes stay pending.
@@ -357,6 +361,38 @@ extension ConfiguratorStore {
             failure = .arrowModeFailed(error)
         }
     }
+
+    /// Lights the arrow keys while arrow mode is on and puts the applied effect back when it ends.
+    /// Writes queue up, so quick toggles end on the latest state.
+    fileprivate func showArrowModeOnKeyboard() {
+        let previousWrite = arrowLightingWrite
+        arrowLightingWrite = Task {
+            await previousWrite?.value
+            await writeArrowModeLighting()
+        }
+    }
+
+    private func writeArrowModeLighting() async {
+        let showsArrows = isArrowModeOn
+        guard keyboardShowsArrowLighting != showsArrows, applyStep == nil,
+              connection.connectedKeyboard?.isSupported == true, let session else { return }
+        applyStep = .lighting
+        do {
+            try await session.applyLighting(showsArrows ? ArrowMode.lighting(for: layout) : lightingBaseline)
+            keyboardShowsArrowLighting = showsArrows
+        } catch {
+            failure = .arrowLightingFailed(error)
+        }
+        applyStep = nil
+    }
+
+    /// The keyboard saves its lighting, so this outlives the app: a later connect puts the applied effect back.
+    fileprivate var keyboardShowsArrowLighting: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.arrowLightingKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.arrowLightingKey) }
+    }
+
+    private static let arrowLightingKey = "keyboardShowsArrowLighting"
 
     /// macOS forgets the swap when the keyboard is unplugged, so a reconnected keyboard gets it again.
     fileprivate func listenForArrowToggle() {

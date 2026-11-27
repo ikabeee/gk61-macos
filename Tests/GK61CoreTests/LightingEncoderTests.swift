@@ -44,6 +44,18 @@ struct LightingEncoderTests {
         #expect(packets[9][(8 + 32)...(8 + 36)] == [0xFD, 0, 0, 0, 0xFF])
     }
 
+    @Test("Arrow mode lights /, Right Alt, App and Right Ctrl in white on custom mode 7 and leaves the rest dark")
+    func arrowModeLighting() throws {
+        let packets = Packet.lighting(ArrowMode.lighting(for: try KeyLayout.gk61())).map(\.bytes)
+
+        #expect(packets.allSatisfy { $0[0...7] == [0xAE, 0x01, 0x00, 0x00, 0x1F, 0x00, 0x04, 0xFF] })
+        // / is slot 95: packet 8, entry 5. Right Alt is slot 114: packet 9, entry 11.
+        #expect(packets[7][(8 + 4 * 4)...(8 + 4 * 4 + 3)] == [0xDF, 0xFF, 0xFF, 0xFF])
+        #expect(packets[8][(8 + 10 * 4)...(8 + 10 * 4 + 3)] == [0xF2, 0xFF, 0xFF, 0xFF])
+        // Enter (slot 76) stays dark: packet 6, entry 11.
+        #expect(packets[5][(8 + 11 * 4)...(8 + 11 * 4 + 3)] == [0xCC, 0, 0, 0])
+    }
+
     private func zeros(_ count: Int) -> [UInt8] {
         Array(repeating: 0, count: count)
     }
