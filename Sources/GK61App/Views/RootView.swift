@@ -5,6 +5,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
     case keys = "Keys"
     case lighting = "Lighting"
     case macros = "Macros"
+    case shortcuts = "Shortcuts"
     case device = "Device"
 
     var id: Self { self }
@@ -14,6 +15,7 @@ enum SidebarSection: String, CaseIterable, Identifiable {
         case .keys: "keyboard"
         case .lighting: "lightbulb"
         case .macros: "record.circle"
+        case .shortcuts: "command"
         case .device: "info.circle"
         }
     }
@@ -62,6 +64,9 @@ struct RootView: View {
                 hasEverApplied: store.applied.lighting != nil, editing: lightingEditing)
         case .macros:
             MacrosPage(macros: store.macros, keyLabels: keyLabels(playing:), editing: macroEditing)
+        case .shortcuts:
+            ShortcutsPage(
+                keys: store.layout.keys, shortcuts: FnShortcut.factory(includingArrowToggle: store.isArrowToggleInstalled))
         case .device:
             DevicePage(
                 connection: store.connection, lastAppliedAt: store.applied.appliedAt,
