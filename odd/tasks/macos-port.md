@@ -18,6 +18,9 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - S8. Test seams (user choice): "Recording → steps", "Saved-format round trip", "macOS key → HID table".
 - S9. Arrow mode: "Lo que necesito dentro de la app un macro que me permita cambiar entre las flechas sin apretar el fn y en su modo normal por ejemplo en el rk61 apretando fn + enter pasa a modo de flechas". Design (user choice "Fn+Enter toggle (Recommended)"): the keyboard's Fn layer gets Fn+Enter → F24; the app listens for F24 from the GK61 and toggles a macOS key mapping, scoped to the GK61, that turns / → ↑, RAlt → ←, App → ↓, RCtrl → → and back. Needs the app open; macOS only. Tests at the agreed packet-encoder seam; the IOKit listener and the hidutil mapping are adapters verified by hand.
 - S10. Menu bar: user answered "Yes, add menu bar" to "Should GK61 keep running in the menu bar when you close its window?" — closing the window keeps the app running; a menu bar item shows and switches arrow mode, reopens the window and quits.
+- S11. Open at login: "sí, que se abra al iniciar sesión".
+- S12. Lighting: "necesito que el teclado ilumine esas flechas cuando esta en ese modo tambien cuando se bloquea la teclado de cmd (que originalmente de viene de windows)". Approach pending research (live per-key LED command? Win-lock state visible to the host?).
+- S13. Shortcuts map: "Tambien necesito un mapa de los shortcuts que trae por defecto el teclado para poder cambiar de musica, acciones secundarias etc".
 
 ## Tasks
 
@@ -39,6 +42,9 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T14 | S9 | HID: F24 listener on the GK61 keyboard interface + hidutil arrow mapping adapter | inline | done | 7b026bf; hidutil set/get/clear checked by hand on both GK61 services |
 | T15 | S9 | App: arrow mode state, Fn+Enter setup, toggle, status indicator, clear mapping on quit | inline | done | c0e4788; RED→GREEN fnKeyActions round trip; swift test 43/43; toolbar switch on → 8 mappings, off → 0 |
 | T16 | S10 | App: menu bar item, keep running after the window closes | inline | done | 4da2374; swift test 43/43; File › Close leaves the app running with no window |
+| T17 | S11 | App: Open at Login (SMAppService.mainApp) in the menu bar menu | inline | done | ae1e5be; swift test 43/43 |
+| T18 | S13 | Factory Fn shortcuts map | pending route | pending | |
+| T19 | S12 | Light the arrow keys in arrow mode and show Cmd lock | pending route | pending | |
 
 ## Log
 
@@ -62,3 +68,4 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - L18 (2026-11-27) T13–T15 done (9247fde, 7b026bf, c0e4788). Fn+Enter written to the keyboard via "Set Up Fn+Enter" at 20:24:31Z with no error (applied keys factory + Fn table index 76 → F24 0x73); CapsLock untouched. Checked in the app: arrow switch on → hidutil shows 4 mappings on each of the 2 GK61 keyboard services and the keycaps show the arrows; off → none. Pending: user presses Fn+Enter on the keyboard (F24 listener untested on hardware). Known limit: closing the window quits the app, which turns arrow mode off.
 - L19 (2026-11-27) User confirmed on the keyboard: "Yes, it switches". Fn+Enter → F24 listener and the hidutil arrow swap work end to end on hardware. S9 met. Follow-up idea, not requested: keep the app running when the window closes (menu bar item), so arrow mode survives closing the window.
 - L20 (2026-11-27) User: "Yes, add menu bar". 4da2374: MenuBarExtra (keyboard icon, arrows icon when arrow mode is on) with Arrow Mode switch, Open GK61, Quit GK61; applicationShouldTerminateAfterLastWindowClosed now false. Checked: after File › Close the process keeps running with no windows. User confirmed the menu bar icon and menu: "Yes, it's there".
+- L21 (2026-11-27) User: "sí, que se abra al iniciar sesión ademas necesito que el teclado ilumine esas flechas cuando esta en ese modo tambien cuando se bloquea la teclado de cmd (que originalmente de viene de windows) / Tambien necesito un mapa de los shortcuts que trae por defecto el teclado para poder cambiar de musica, acciones secundarias etc". T17 done in ae1e5be (menu bar "Open at Login" switch; needs the user to turn it on). Read-only explorer sent to the Windows driver for: meaning of Fn-layer type 0x04 entries and firmware-only shortcuts, any live/non-persistent per-key LED command, and whether Win-lock state reaches the host.
