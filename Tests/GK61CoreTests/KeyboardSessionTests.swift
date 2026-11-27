@@ -25,6 +25,25 @@ struct KeyboardSessionTests {
         #expect(keyboard.sentPayloads == Packet.keyMatrix(layout, actions: [63: .remap(toUsage: 0xE0)]).map(\.bytes))
     }
 
+    @Test("applyKeymap with macro keys frees the buffers, uploads each key's macro in matrix order, then writes the matrix")
+    func appliesKeymapWithMacros() async throws {
+        let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
+        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero, pauseAfterOperation: .zero)
+        let layout = try KeyLayout.gk61()
+        let tap = try Macro(playback: .repeatCount(1), steps: [MacroStep(.keyDown(usage: 0x04)), MacroStep(.keyUp(usage: 0x04))])
+        let scroll = try Macro(playback: .untilReleased, steps: Array(repeating: MacroStep(.wheel(.down, notches: 1)), count: 20))
+        let actions: [Int: KeyAction] = [63: .macro(tap), 21: .macro(scroll)]
+
+        try await session.applyKeymap(layout, actions: actions)
+
+        // Esc (21) comes first in matrix order, so its macro goes to buffer 1.
+        let expected = [Packet.freeMacroBuffers]
+            + Packet.macroUpload(scroll, bufferID: 1)
+            + Packet.macroUpload(tap, bufferID: 2)
+            + Packet.keyMatrix(layout, actions: actions)
+        #expect(keyboard.sentPayloads == expected.map(\.bytes))
+    }
+
     @Test("applyLighting sends the SetLED packets, each acknowledged by AE")
     func appliesLighting() async throws {
         let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }

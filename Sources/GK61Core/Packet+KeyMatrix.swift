@@ -1,6 +1,7 @@
 extension Packet {
     /// SetMatrix for the normal layer: the 126-entry key table split into 14 packets.
     /// Keys without an action get a zero code, which the firmware treats as its default.
+    /// Macro keys point at the buffers `KeyboardSession.applyKeymap` uploads their macros to.
     public static func keyMatrix(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [Packet] {
         let table = keyTable(layout, actions: actions)
         return stride(from: 0, to: table.count, by: KeyMatrix.bytesPerPacket).enumerated().map { number, offset in
@@ -9,9 +10,11 @@ extension Packet {
     }
 
     private static func keyTable(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [UInt8] {
+        let macroBufferIDs = Dictionary(uniqueKeysWithValues: MacroBuffer.assign(layout, actions: actions).map { ($0.matrixIndex, $0.id) })
         var table = [UInt8](repeating: 0, count: KeyMatrix.slotCount * KeyMatrix.bytesPerEntry)
         for key in layout.keys {
-            let code = actions[key.matrixIndex]?.codeBytes ?? [0, 0, 0, 0]
+            let bufferID = macroBufferIDs[key.matrixIndex] ?? 0
+            let code = actions[key.matrixIndex]?.codeBytes(macroBufferID: bufferID) ?? [0, 0, 0, 0]
             let entry = [UInt8(key.matrixIndex)] + code + [0]
             table.replaceSubrange(key.matrixIndex * KeyMatrix.bytesPerEntry ..< (key.matrixIndex + 1) * KeyMatrix.bytesPerEntry, with: entry)
         }

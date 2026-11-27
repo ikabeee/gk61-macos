@@ -23,7 +23,7 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T3 | S1 | Core: command framing + device info query | inline | done | RED→GREEN 3 tests; device replied PSD 0F 0B via probe |
 | T4 | S1 | Core: layout resource + normal-layer key matrix (Fn layer left untouched in v1) | inline | done | RED→GREEN 6 tests (layout, matrix framing, modifier/key remap, applyKeymap) |
 | T5 | S1 | Core: lighting modes, brightness, speed, colors | inline | done | RED→GREEN 5 tests (mode catalog 1–31, palette/rainbow byte, per-key custom modes, applyLighting) |
-| T6 | S1, S5 | Core: macros | delegated writer (parallel units, disjoint surfaces) | in-progress | |
+| T6 | S1, S5 | Core: macros | delegated writer (parallel units, disjoint surfaces) | done | 13 rules RED→GREEN; swift test 27/27; parent spot check A8 seq=i+1 @0x4382b3 |
 | T7 | S2, S3 | SwiftUI app | delegated writer (parallel units, disjoint surfaces) | done | 7961f8e; build 0 warnings; parent viewed Keys/inspector, Lighting, Device in the packaged app; Apply never pressed |
 | T8 | S2 | .app bundle packaging script | delegated with T7 | done | 7961f8e; scripts/build-app.sh → build/GK61.app, codesign verify ok |
 

@@ -18,19 +18,23 @@ public actor KeyboardSession {
     private let transport: KeyboardTransport
     private let acknowledgementTimeout: Duration
     private let pauseAfterChunk: Duration
+    private let pauseAfterOperation: Duration
     private var pendingReply: PendingReply?
     private var lastExchangeID = 0
     private var listener: Task<Void, Never>?
 
-    /// Defaults match the Windows driver: about 2 s per acknowledgement, 30 ms between chunks.
+    /// Defaults match the Windows driver: about 2 s per acknowledgement, 30 ms between chunks,
+    /// up to 100 ms between the operations of one Apply.
     public init(
         transport: KeyboardTransport,
         acknowledgementTimeout: Duration = .seconds(2),
-        pauseAfterChunk: Duration = .milliseconds(30)
+        pauseAfterChunk: Duration = .milliseconds(30),
+        pauseAfterOperation: Duration = .milliseconds(100)
     ) {
         self.transport = transport
         self.acknowledgementTimeout = acknowledgementTimeout
         self.pauseAfterChunk = pauseAfterChunk
+        self.pauseAfterOperation = pauseAfterOperation
     }
 
     deinit {
@@ -43,12 +47,28 @@ public actor KeyboardSession {
     }
 
     /// Writes the normal-layer key matrix. Keys missing from `actions` revert to the firmware default.
+    /// Macro keys first get their macros uploaded, as the Windows driver does on Apply.
     public func applyKeymap(_ layout: KeyLayout, actions: [Int: KeyAction]) async throws {
+        try await uploadMacros(MacroBuffer.assign(layout, actions: actions))
         try await sendChunks(Packet.keyMatrix(layout, actions: actions))
     }
 
     public func applyLighting(_ lighting: Lighting) async throws {
         try await sendChunks(Packet.lighting(lighting))
+    }
+
+    /// Like the Windows driver, sends no macro command at all when no key plays a macro.
+    private func uploadMacros(_ buffers: [MacroBuffer]) async throws {
+        guard !buffers.isEmpty else { return }
+        try await sendOperation([.freeMacroBuffers])
+        for buffer in buffers {
+            try await sendOperation(Packet.macroUpload(buffer.macro, bufferID: buffer.id))
+        }
+    }
+
+    private func sendOperation(_ packets: [Packet]) async throws {
+        try await sendChunks(packets)
+        try await Task.sleep(for: pauseAfterOperation)
     }
 
     private func sendChunks(_ packets: [Packet]) async throws {

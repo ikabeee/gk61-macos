@@ -37,9 +37,9 @@ Below, offsets are **payload** offsets (report byte = offset + 1).
 | `A0 02 05 …` | Write Fn-layer key matrix | `A0` each | Same layout as `A0 02 04` |
 | `AE 01 00 00 mode speed bright color [7]=… [8..]` | Set backlight | `AE` | Per-key data for custom modes, see below |
 | `AE 07 00 00 mode speed bright` | Set side light | `AE` | |
-| `AA 00` | Free all macro buffers | `AA` | Persistent |
-| `A7 id sizeHi sizeLo` | Allocate macro buffer, size = len + 5 (big-endian) | `A7` | |
-| `A8 id 00 seq total len <≤57 B>` | Write macro data at offset 6; total = ceil(len / 57) | `A8` each | |
+| `AA 00` | Free all macro buffers | `AA` | Persistent (`0x438190`) |
+| `A7 id sizeHi sizeLo` | Allocate macro buffer `id`, size = body length + 5 (big-endian) | `A7` | `0x4380e0` |
+| `A8 id 00 seq total len <≤57 B>` | Write one chunk of the macro body, data at offset 6 | `A8` each | `0x438220`, see Macro upload |
 | `A6 02 01` / `A6 02 00` | Sent when macro recording starts / stops | none | Purpose [I] |
 | **`A5 01 00`** | **Enter bootloader** | sync read | **Never send.** Used only by the firmware updater |
 
@@ -49,7 +49,7 @@ The Apply order (`fcn.00408ea0`) is:
 
 1. backlight;
 2. side light;
-3. macros, if any key uses one (`AA`, then `A7` and `A8…` per macro), then the normal matrix, then the Fn matrix;
+3. macros, if any key uses one (`AA`, then `A7` and `A8…` per macro key, see Macro upload), then the normal matrix, then the Fn matrix;
 4. reset matrix.
 
 ## Key matrix [V]
@@ -63,7 +63,7 @@ The Apply order (`fcn.00408ea0`) is:
 |---|---|
 | Firmware default (key unchanged, or the Fn key) | `00 00 00 00` |
 | Key or combo | `FC modmask hid1 hid2` |
-| Macro (mode 0 / 1 / 2) | `F3` / `F1` / `F0`, buffer id, macro fields [I] |
+| Macro, see Macro key entry | `F3 id countHi countLo` / `F0 id 00 00` / `F1 id 00 00` |
 | Mouse functions [I] | `B0 B2 B1 B3 B4` … |
 | Media / system [I] | `A0 93 94 95 96 90 91 92`, `A1`–`AA` |
 
@@ -80,15 +80,52 @@ The Fn layer uses the same encoding and indices.
 
 ## Macro body [V]
 
-Maximum 512 bytes. Byte 0 is `01`, bytes 1–30 are zero, and events start at byte 31:
+Serialized by `fcn.00408860` into a 512-byte buffer with no bounds check (the port rejects longer bodies).
+Byte 0 is `01`, bytes 1–30 are zero, and events start at byte 31. There is no terminator; the body length
+travels in `A7`. Every event is followed by `01 hi lo` when its delay is nonzero (milliseconds, the low
+16 bits of the stored value).
 
-| Event | Bytes |
-|---|---|
-| Key down / up | `02 hid` / `03 hid` (modifiers as HID `E0`–`E7`) |
-| Mouse button down / up | `04 n` / `05 n` (n = 1 left, 2 right, 3 middle) |
-| Wheel up / down | `08 00` / `09 00` |
-| Delay | `01 hi lo` (ms), after any event with a nonzero delay |
-| Mouse move [I] | `06 xh xl yh yl` |
+| Event | Bytes | Evidence |
+|---|---|---|
+| Key down / up | `02 hid` / `03 hid`; modifiers as HID `E0`–`E7` | `0x4089f8`: `(flag == 0) + 2`; the recorder marks key down 1 and key up 0 (`0x41886b`, `0x415d83`), and the macro list shows the same down icon for a nonzero stored flag (`0x417f55`) |
+| Mouse button down / up | `04 n` / `05 n`; n = 1 left, 2 right, 3 middle | `0x408929`, same flag rule |
+| Wheel up / down | `08 00` / `09 00`, repeated once per notch | `0x408948`; "Scroll Up" is pseudo-key `F5` → `08`, "Scroll Down" `F6` → `09` (`0x424bd6`, `0x424c47`) |
+| Delay | `01 hi lo` | `0x408961` |
+| Mouse move [I] | `06 xh xl ? ?` | `0x408a1b` writes bits 16–23 and 8–15 of the stored dword as the last two bytes, which does not look like a separate Y. Not supported by the port |
+
+Windows records virtual-key codes and maps them to HID usages here; the port records HID usages directly.
+
+## Macro key entry [V]
+
+A key that plays a macro has code bytes built by `fcn.004082c0` (type 5, `0x4084e6`) from the macro's loop mode.
+`id` is `00` in the stored table and is patched to the buffer id during Apply (`0x409500`).
+
+| Loop mode (macro dialog, saved at `0x414893`) | Mode | c1 c2 c3 c4 |
+|---|---|---|
+| "Specified cycle times" | 0 | `F3 id countHi countLo`; count is a 16-bit value, an empty or zero entry is saved as 1 |
+| "Cycle until the key pressed again" | 1 | `F1 id 00 00` |
+| "Cycle until the key released" | 2 | `F0 id 00 00` |
+
+`F2` is never produced.
+
+## Macro upload [V]
+
+During Apply (`fcn.00408ea0`), the driver counts entries with c1 in `F0`…`F3` in both layers. If any exist:
+
+1. `AA 00`, then 100 ms;
+2. for each matrix index 0…125, the normal-layer entry and then the Fn-layer entry: if it is a macro key,
+   serialize its macro, send `A7 id size`, wait 50 ms, send the `A8` chunks, wait 50 ms, and patch `id` into c2;
+3. write the matrices.
+
+- Buffer ids start at 1 and grow by one per **macro key**. Keys that share a macro each get their own buffer and their own upload.
+- `A7` size = body length + 5, big-endian (`0x438109`).
+- `A8` chunks: `[A8, id, 00, seq, total, len, data…]` with `seq` = 1…total, `total` = ceil(body length / 57),
+  `len` = the length of **this** chunk (57, or the remainder in the last chunk), and data at payload offset 6
+  (`0x4382ab`–`0x4382e2`). Each chunk waits for the `A8` acknowledgement, then 30 ms.
+- With no macro keys, no macro command is sent, so buffers from an earlier Apply presumably stay allocated [I].
+
+The port uploads normal-layer macro keys only (the Fn layer is not written), paces with the acknowledgements,
+30 ms after each chunk, and 100 ms after `AA` and after each macro.
 
 ## Backlight [V]
 
