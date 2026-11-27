@@ -30,7 +30,7 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T7 | S2, S3 | SwiftUI app | delegated writer (parallel units, disjoint surfaces) | done | 7961f8e; build 0 warnings; parent viewed Keys/inspector, Lighting, Device in the packaged app; Apply never pressed |
 | T8 | S2 | .app bundle packaging script | delegated with T7 | done | 7961f8e; scripts/build-app.sh → build/GK61.app, codesign verify ok |
 | T9 | S6, S8 | Core: recorded key events → macro steps with delays | inline | done | RED→GREEN 5 rules (gap delays, 16-bit clamp, auto-repeat, orphan release, release held keys); swift test 33/33 |
-| T10 | S6, S8 | HID: macOS key code → HID usage table | inline | pending | |
+| T10 | S6, S8 | HID: macOS key code → HID usage table | inline | done | RED→GREEN: 10 sampled keys + Fn has none; GK61HIDTests target |
 | T11 | S7, S8 | Storage module: applied config + macro library JSON round trip | inline | pending | |
 | T12 | S6, S7 | App: macro library store, Macros page, recording, key assignment | inline | pending | |
 
