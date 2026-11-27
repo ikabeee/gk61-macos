@@ -45,8 +45,8 @@ private struct MenuBarMenu: View {
 
     var body: some View {
         Toggle("Arrow Mode", isOn: binding(for: .arrowMode))
-        Toggle("Cmd Lock", isOn: binding(for: .commandLock))
-        Text("Fn+Enter and Fn+Win on the keyboard also switch them")
+        Text("Fn+Enter on the keyboard also switches it")
+        Text(store.isCommandLockOn ? "Cmd Lock: Locked (Fn+Win)" : "Cmd Lock: Unlocked (Fn+Win)")
         Divider()
         Toggle("Open at Login", isOn: opensAtLoginBinding)
         if loginItem.needsApproval {

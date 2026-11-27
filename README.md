@@ -90,12 +90,12 @@ tccutil reset ListenEvent local.gk61.config
   or more keys with a repeat mode.
 - **Arrow mode (Fn+Enter)**: /, Right Alt, App and Right Ctrl send ↑ ← ↓ →; hold Fn for the
   original key. The four keys light up white.
-- **Cmd lock (Fn+Win)**: Left Win (Command) stops working until you press Fn+Win again. The key
-  lights up red.
+- **Cmd lock (Fn+Win)**: the keyboard's own Win lock. Left Win (Command) stops working until you
+  press Fn+Win again; GK61 lights the key red while it's locked.
 - **Shortcuts**: a map of the keyboard's built-in Fn shortcuts (media, F1–F12, navigation).
 - **Device**: connection status, product name, IDs, firmware version and signature.
-- **Menu bar item**: switches arrow mode and Cmd lock, opens the window, and turns Open at Login
-  on or off. Closing the window keeps GK61 running there.
+- **Menu bar item**: switches arrow mode, shows whether Cmd is locked, opens the window, and turns
+  Open at Login on or off. Closing the window keeps GK61 running there.
 
 Edits stay pending until you click **Apply** (⌘S); **Revert** discards them. Apply writes only
 what changed, lighting first and then the keymap, as the Windows driver does.
@@ -108,10 +108,13 @@ what changed, lighting first and then the keymap, as the Windows driver does.
   keyboard's Fn shortcuts, or another computer are not visible.
 - **Writes are persistent.** Applied settings stay on the keyboard after you unplug it.
 - **No firmware commands.** The app never sends firmware-update or bootloader commands.
-- **Arrow mode and Cmd lock need GK61 running.** The firmware can't hold these modes, so Fn+Enter
-  and Fn+Win send F24 and F23 and GK61 changes the keys on the Mac. On another computer those Fn
-  keys do nothing, and the firmware's own Win lock is replaced. If Fn+Enter or Fn+Win stop
-  switching, click **Write Fn Keys Again** on the Keys page.
+- **Arrow mode needs GK61 running.** The firmware has no arrow layer, so Fn+Enter sends F24 and
+  GK61 swaps the keys on the Mac. On another computer Fn+Enter does nothing. Fn+Win still locks Win
+  everywhere: the keyboard does the locking and also sends F23 so GK61 can light the key. If
+  Fn+Enter stops switching, click **Write Fn Keys Again** on the Keys page.
+- **The Cmd-lock light can lag.** If you press Fn+Win while GK61 isn't running, the red light can
+  show the wrong state; it corrects itself the next time you press Win while it's unlocked. If Cmd
+  stops working, press Fn+Win.
 - **Mode lights are saved on the keyboard.** The keyboard has no temporary LED command, so the
   arrow and Cmd-lock lights use custom lighting mode 7. Turning both modes off writes your applied
   effect back. If you quit with a mode on, the lights stay until GK61 connects again.

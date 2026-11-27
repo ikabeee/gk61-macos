@@ -325,9 +325,9 @@ extension ConfiguratorStore {
     }
 }
 
-/// Keyboard toggles: Fn+Enter (arrow mode) and Fn+Left Win (Cmd lock) send F24 and F23; the store changes
-/// the keys on this Mac and lights them on the keyboard. The Mac mapping is undone when the app starts or
-/// quits, so it never outlives the app.
+/// Keyboard toggles: Fn+Enter (arrow mode) and Fn+Left Win (Cmd lock) send F24 and F23. The store swaps
+/// the arrow keys on this Mac and lights the toggles' keys on the keyboard; the keyboard locks Left Win
+/// itself. The Mac mapping is undone when the app starts or quits, so it never outlives the app.
 extension ConfiguratorStore {
     var isArrowModeOn: Bool { activeToggles.contains(.arrowMode) }
     var isCommandLockOn: Bool { activeToggles.contains(.commandLock) }
@@ -404,13 +404,31 @@ extension ConfiguratorStore {
 
     private static let shownTogglesKey = "keyboardShownToggles"
 
+    private static let listenedUsages = Set(KeyboardToggle.allCases.map(\.signalUsage) + [commandKeyUsage])
+
+    private static let commandKeyUsage = KeyboardToggle.commandLock.fnKeyUsage
+
+    private func handleKeyboardPress(_ usage: UInt8) {
+        if let pressed = KeyboardToggle(signalUsage: usage) {
+            toggle(pressed)
+        } else if usage == Self.commandKeyUsage {
+            noteCommandKeyReached()
+        }
+    }
+
+    /// The keyboard only sends Left Win while its Win lock is off, so the Cmd-lock light must be off too.
+    /// This puts the light back in step when the app missed a Fn+Win (for example, while it wasn't running).
+    private func noteCommandKeyReached() {
+        guard isCommandLockOn else { return }
+        toggle(.commandLock)
+    }
+
     /// macOS forgets the mapping when the keyboard is unplugged, so a reconnected keyboard gets it again.
     fileprivate func listenForToggles() {
         guard toggleListener == nil else { return }
         do {
-            toggleListener = try KeyPressListener(usages: Set(KeyboardToggle.allCases.map(\.signalUsage))) { [weak self] usage in
-                guard let toggle = KeyboardToggle(signalUsage: usage) else { return }
-                self?.toggle(toggle)
+            toggleListener = try KeyPressListener(usages: Self.listenedUsages) { [weak self] usage in
+                self?.handleKeyboardPress(usage)
             } onKeyboardConnected: { [weak self] in
                 guard let self, !activeToggles.isEmpty else { return }
                 applyMacMapping(for: activeToggles)
