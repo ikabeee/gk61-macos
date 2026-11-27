@@ -351,7 +351,7 @@ extension ConfiguratorStore {
 
     fileprivate func applyArrowMode(_ isOn: Bool) {
         do {
-            try KeyRemapping.apply(isOn ? ArrowMode.arrowUsages : [:])
+            try KeyRemapping.apply(isOn ? ArrowMode.swappedUsages : [:])
             isArrowModeOn = isOn
         } catch {
             failure = .arrowModeFailed(error)

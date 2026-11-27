@@ -13,6 +13,11 @@ public enum ArrowMode {
         0xE4: 0x4F,
     ]
 
+    /// The Mac-side mapping in arrow mode: each key and its arrow trade places. On a 60% board the
+    /// arrows only come from Fn + those keys, so Fn + / still types / while the plain key sends ↑.
+    public static let swappedUsages: [UInt8: UInt8] = arrowUsages.merging(
+        arrowUsages.map { ($0.value, $0.key) }, uniquingKeysWith: { current, _ in current })
+
     /// The Fn-layer action that makes Fn+Enter send the toggle; empty if the layout has no Enter key.
     public static func fnActions(for layout: KeyLayout) -> [Int: KeyAction] {
         guard let enter = layout.keys.first(where: { $0.defaultUsage == enterUsage }) else { return [:] }
