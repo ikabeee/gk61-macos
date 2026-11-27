@@ -48,6 +48,14 @@ struct OperationFailure: Identifiable {
             offersReconnect: false)
     }
 
+    static func arrowModeFailed(_ error: any Error) -> OperationFailure {
+        OperationFailure(
+            title: "Couldn't Switch Arrow Mode",
+            message: DeviceErrorText.describe(error),
+            recovery: "Reconnect the keyboard and try again. Your keys keep working as printed meanwhile.",
+            offersReconnect: true)
+    }
+
     static func macroLibraryLoadFailed(_ error: any Error) -> OperationFailure {
         OperationFailure(
             title: "Couldn't Read Your Macros",

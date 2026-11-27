@@ -55,7 +55,7 @@ struct RootView: View {
             KeysPage(
                 keys: store.layout.keys, keyActions: store.draftKeyActions, pendingKeyIDs: store.pendingKeyIDs,
                 macros: store.macros, macroSources: store.draftMacroSources,
-                selectedKeyID: $store.selectedKeyID, editing: keyEditing)
+                selectedKeyID: $store.selectedKeyID, editing: keyEditing, arrowMode: arrowModeBox)
         case .lighting:
             LightingPage(
                 lighting: store.draftLighting, keys: store.layout.keys,
@@ -73,6 +73,15 @@ struct RootView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
             ConnectionBadge(connection: store.connection) { section = .device }
+        }
+        ToolbarItem {
+            Toggle(isOn: arrowModeBinding) {
+                Label("Arrow Mode", systemImage: "arrow.up.and.down.and.arrow.left.and.right")
+            }
+            .toggleStyle(.button)
+            .help(store.isArrowModeOn
+                ? "Arrow mode is on: / ↑, Right Alt ←, App ↓, Right Ctrl →. Click or press Fn+Enter to turn it off."
+                : "Turn on arrow mode: / ↑, Right Alt ←, App ↓, Right Ctrl →")
         }
         ToolbarItemGroup(placement: .primaryAction) {
             if let step = store.applyStep {
@@ -105,6 +114,19 @@ struct RootView: View {
             assignMacro: { store.assignMacro($1, to: $0) },
             setPlayback: { store.setPlayback($1, for: $0) },
             openMacros: { section = .macros })
+    }
+
+    private var arrowModeBox: ArrowModeBox {
+        ArrowModeBox(
+            isOn: store.isArrowModeOn, isToggleInstalled: store.isArrowToggleInstalled,
+            installBlocker: StatusText.arrowToggleInstallBlocker(store.applyBlocker),
+            actions: ArrowModeActions(
+                toggle: store.toggleArrowMode,
+                installToggle: { Task { await store.installArrowToggle() } }))
+    }
+
+    private var arrowModeBinding: Binding<Bool> {
+        Binding { store.isArrowModeOn } set: { if $0 != store.isArrowModeOn { store.toggleArrowMode() } }
     }
 
     private var macroEditing: MacroEditingActions {
@@ -182,6 +204,14 @@ private enum StatusText {
         switch step {
         case .lighting: "Applying lighting…"
         case .keymap: "Applying keys…"
+        }
+    }
+
+    /// Setting up Fn+Enter writes the applied keymap, so it needs everything Apply needs except pending changes.
+    static func arrowToggleInstallBlocker(_ blocker: ApplyBlocker?) -> String? {
+        switch blocker {
+        case nil, .nothingPending: nil
+        case .applying, .disconnected, .unsupportedKeyboard: applyHelp(blocker)
         }
     }
 

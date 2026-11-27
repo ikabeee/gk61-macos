@@ -102,3 +102,19 @@ struct MacroKeyLinkTests {
         }
     }
 }
+
+@Suite("Fn-layer keys")
+struct FnKeyActionTests {
+    @Test("The applied configuration remembers the Fn-layer actions written to the keyboard")
+    func roundTripsFnKeyActions() throws {
+        try withTemporaryDirectory { directory in
+            let file = ConfigurationFile(url: directory.appending(path: "last-applied.json"))
+            let configuration = AppliedConfiguration(
+                keyActions: [:], fnKeyActions: [76: .remap(toUsage: 0x73)], lighting: nil, appliedAt: nil)
+
+            try file.save(configuration)
+
+            #expect(try file.load().fnKeyActions == [76: .remap(toUsage: 0x73)])
+        }
+    }
+}

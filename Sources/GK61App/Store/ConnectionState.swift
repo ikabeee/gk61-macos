@@ -56,6 +56,8 @@ enum DeviceErrorText {
             "macOS couldn't open the keyboard (IOReturn \(hex(code))). Another app may be using it."
         case let HIDTransportError.sendFailed(code):
             "Sending to the keyboard failed (IOReturn \(hex(code))). It may have been unplugged."
+        case let KeyRemappingError.hidutilFailed(status, output):
+            "macOS couldn't change the keyboard mapping (hidutil exited with \(status)). \(output)"
         default:
             error.localizedDescription
         }

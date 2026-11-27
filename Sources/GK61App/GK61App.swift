@@ -1,5 +1,6 @@
 import AppKit
 import GK61Core
+import GK61HID
 import GK61Storage
 import SwiftUI
 
@@ -47,6 +48,8 @@ private struct KeyboardCommands: Commands {
             if case let .ready(store) = launch {
                 Button("Reconnect Keyboard") { Task { await store.connect() } }
                     .keyboardShortcut("r")
+                Button("Toggle Arrow Mode", action: store.toggleArrowMode)
+                    .keyboardShortcut("a", modifiers: [.command, .shift])
             }
         }
     }
@@ -63,5 +66,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
+    }
+
+    /// Arrow mode only lives while the app runs. There is no window left to report a failure to.
+    func applicationWillTerminate(_ notification: Notification) {
+        try? KeyRemapping.apply([:])
     }
 }

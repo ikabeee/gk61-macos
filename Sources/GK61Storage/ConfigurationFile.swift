@@ -7,12 +7,18 @@ public struct AppliedConfiguration: Equatable, Sendable {
     public var keyActions: [Int: KeyAction]
     /// The library macro each macro key was copied from, by matrix index.
     public var macroSources: [Int: UUID]
+    /// What keys send while Fn is held; keys without an entry keep their factory Fn function.
+    public var fnKeyActions: [Int: KeyAction]
     public var lighting: Lighting?
     public var appliedAt: Date?
 
-    public init(keyActions: [Int: KeyAction], macroSources: [Int: UUID] = [:], lighting: Lighting?, appliedAt: Date?) {
+    public init(
+        keyActions: [Int: KeyAction], macroSources: [Int: UUID] = [:], fnKeyActions: [Int: KeyAction] = [:],
+        lighting: Lighting?, appliedAt: Date?
+    ) {
         self.keyActions = keyActions
         self.macroSources = macroSources
+        self.fnKeyActions = fnKeyActions
         self.lighting = lighting
         self.appliedAt = appliedAt
     }
@@ -81,12 +87,15 @@ private struct SavedConfiguration: Codable {
     var keyActions: [Int: SavedKeyAction]
     /// Absent in files saved before macros existed.
     var macroSources: [Int: UUID]?
+    /// Absent in files saved before the Fn layer was written.
+    var fnKeyActions: [Int: SavedKeyAction]?
     var lighting: SavedLighting?
     var appliedAt: Date?
 
     init(_ configuration: AppliedConfiguration) {
         keyActions = configuration.keyActions.mapValues(SavedKeyAction.init)
         macroSources = configuration.macroSources
+        fnKeyActions = configuration.fnKeyActions.mapValues(SavedKeyAction.init)
         lighting = configuration.lighting.map(SavedLighting.init)
         appliedAt = configuration.appliedAt
     }
@@ -95,6 +104,7 @@ private struct SavedConfiguration: Codable {
         AppliedConfiguration(
             keyActions: try keyActions.mapValues { try $0.keyAction() },
             macroSources: macroSources ?? [:],
+            fnKeyActions: try (fnKeyActions ?? [:]).mapValues { try $0.keyAction() },
             lighting: try lighting?.lighting(),
             appliedAt: appliedAt)
     }

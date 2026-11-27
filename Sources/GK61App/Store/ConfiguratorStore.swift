@@ -17,10 +17,13 @@ final class ConfiguratorStore {
     /// The library macro each macro key in the draft plays, by matrix index.
     private(set) var draftMacroSources: [Int: UUID]
     private(set) var macros: [MacroDefinition]
+    /// Whether / , Right Option, App and Right Control send arrows on this Mac right now.
+    private(set) var isArrowModeOn = false
     var selectedKeyID: KeyLayout.Key.ID?
     var failure: OperationFailure?
 
     @ObservationIgnored private var session: KeyboardSession?
+    @ObservationIgnored private var arrowToggleListener: KeyPressListener?
     @ObservationIgnored private let configurationFile: ConfigurationFile
     @ObservationIgnored let macroLibraryFile: MacroLibraryFile
 
@@ -35,6 +38,7 @@ final class ConfiguratorStore {
         macros = []
         restoreAppliedConfiguration()
         restoreMacroLibrary()
+        applyArrowMode(false)
     }
 
     // MARK: Status
@@ -64,6 +68,7 @@ final class ConfiguratorStore {
         connection = .connecting
         do {
             connection = .connected(try await openSession())
+            listenForArrowToggle()
         } catch {
             connection = ConnectionState(connectionError: error)
         }
@@ -111,10 +116,12 @@ final class ConfiguratorStore {
         applyStep = .keymap
         let actions = draftKeyActions
         let sources = draftMacroSources
-        try await session.applyKeymap(layout, actions: actions)
+        let fnActions = ArrowMode.fnActions(for: layout)
+        try await session.applyKeymap(layout, actions: actions, fnActions: fnActions)
         recordApplied {
             $0.keyActions = actions
             $0.macroSources = sources
+            $0.fnKeyActions = fnActions
         }
     }
 
@@ -312,6 +319,58 @@ extension ConfiguratorStore {
         let names = Set(macros.map(\.name))
         let number = (1...).first { !names.contains("Macro \($0)") } ?? macros.count + 1
         return "Macro \(number)"
+    }
+}
+
+/// Arrow mode: Fn+Enter on the keyboard sends F24, and the store swaps the keys under the right Shift
+/// to arrows on this Mac. The swap is undone when the app starts or quits, so it never outlives the app.
+extension ConfiguratorStore {
+    /// True once the keyboard's Fn layer has Fn+Enter sending the toggle.
+    var isArrowToggleInstalled: Bool {
+        applied.fnKeyActions == ArrowMode.fnActions(for: layout)
+    }
+
+    func toggleArrowMode() {
+        applyArrowMode(!isArrowModeOn)
+    }
+
+    /// Writes the applied keymap again with Fn+Enter added; unapplied key changes stay pending.
+    func installArrowToggle() async {
+        guard applyStep == nil, connection.connectedKeyboard?.isSupported == true, let session else { return }
+        applyStep = .keymap
+        let actions = applied.keyActions
+        let fnActions = ArrowMode.fnActions(for: layout)
+        do {
+            try await session.applyKeymap(layout, actions: actions, fnActions: fnActions)
+            recordApplied { $0.fnKeyActions = fnActions }
+        } catch {
+            failure = .applyFailed(error)
+        }
+        applyStep = nil
+    }
+
+    fileprivate func applyArrowMode(_ isOn: Bool) {
+        do {
+            try KeyRemapping.apply(isOn ? ArrowMode.arrowUsages : [:])
+            isArrowModeOn = isOn
+        } catch {
+            failure = .arrowModeFailed(error)
+        }
+    }
+
+    /// macOS forgets the swap when the keyboard is unplugged, so a reconnected keyboard gets it again.
+    fileprivate func listenForArrowToggle() {
+        guard arrowToggleListener == nil else { return }
+        do {
+            arrowToggleListener = try KeyPressListener(usage: ArrowMode.toggleUsage) { [weak self] in
+                self?.toggleArrowMode()
+            } onKeyboardConnected: { [weak self] in
+                guard let self, isArrowModeOn else { return }
+                applyArrowMode(true)
+            }
+        } catch {
+            failure = .arrowModeFailed(error)
+        }
     }
 }
 

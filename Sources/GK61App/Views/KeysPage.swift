@@ -21,6 +21,7 @@ struct KeysPage: View {
     let macroSources: [KeyLayout.Key.ID: MacroDefinition.ID]
     @Binding var selectedKeyID: KeyLayout.Key.ID?
     let editing: KeyEditingActions
+    let arrowMode: ArrowModeBox
     @State private var showsInspector = true
 
     var body: some View {
@@ -30,6 +31,8 @@ struct KeysPage: View {
                 showsInspector = true
             }
             footer
+            arrowMode
+                .frame(maxWidth: 640)
         }
         .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -74,7 +77,7 @@ struct KeysPage: View {
             return KeyCapAppearance(caption: key.label, isEnabled: false, help: "The Fn key can't be remapped")
         }
         guard let action = keyActions[key.id] else {
-            return KeyCapAppearance(caption: key.label, help: "\(key.label): default")
+            return defaultAppearance(of: key)
         }
         let pendingNote = pendingKeyIDs.contains(key.id) ? " (not applied yet)" : ""
         return KeyCapAppearance(
@@ -82,6 +85,15 @@ struct KeysPage: View {
             detail: "→ " + KeyActionText.symbol(for: action),
             isEmphasized: true,
             help: "\(key.label) \(actionDescription(of: key, action))\(pendingNote)")
+    }
+
+    /// In arrow mode, a key left on its default shows the arrow it sends on this Mac.
+    private func defaultAppearance(of key: KeyLayout.Key) -> KeyCapAppearance {
+        guard arrowMode.isOn, let usage = key.defaultUsage, let arrow = ArrowMode.arrowUsages[usage] else {
+            return KeyCapAppearance(caption: key.label, help: "\(key.label): default")
+        }
+        let symbol = KeyActionText.symbol(for: .remap(toUsage: arrow))
+        return KeyCapAppearance(caption: key.label, detail: symbol, help: "\(key.label) sends \(symbol) in arrow mode")
     }
 
     private func actionDescription(of key: KeyLayout.Key, _ action: KeyAction) -> String {
