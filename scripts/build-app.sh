@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds GK61 in release mode and packages it as build/GK61.app (ad-hoc signed).
+# Builds GK61 in release mode and packages it as build/GK61.app, signed with the local identity.
 # Set SCRATCH_PATH to use a SwiftPM build directory other than .build.
 set -euo pipefail
 
@@ -13,8 +13,19 @@ fi
 main() {
     build_release
     assemble_bundle "$("${swift_build[@]}" --show-bin-path)"
-    codesign --force --deep --sign - "$app"
+    codesign --force --deep --sign "$(signing_identity)" "$app"
     echo "Built $app"
+}
+
+# A stable identity keeps the Input Monitoring grant across rebuilds; ad-hoc ("-") loses it every build.
+signing_identity() {
+    local identity="GK61 Local Signing"
+    if security find-certificate -c "$identity" >/dev/null 2>&1; then
+        echo "$identity"
+    else
+        echo "warning: \"$identity\" not found; signing ad-hoc. Run scripts/create-signing-identity.sh." >&2
+        echo "-"
+    fi
 }
 
 build_release() {

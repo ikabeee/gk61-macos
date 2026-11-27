@@ -20,13 +20,19 @@ Requirements: macOS 15 or later, Xcode with Swift 6.2 or later.
 
 ```sh
 swift run GK61            # run from the package
-scripts/build-app.sh      # build build/GK61.app (release, ad-hoc signed)
+scripts/create-signing-identity.sh  # once per Mac: local code-signing identity
+scripts/build-app.sh                # build build/GK61.app (release)
 open build/GK61.app
 ```
 
 `scripts/build-app.sh` builds the `GK61` product in release mode, then copies the SwiftPM resource
 bundle into `Contents/Resources` so the key layout loads. Set `SCRATCH_PATH` to use a build
 directory other than `.build`.
+
+The app is signed with the self-signed "GK61 Local Signing" identity from
+`scripts/create-signing-identity.sh`. macOS ties the Input Monitoring grant to the app's code
+signature; an ad-hoc signature changes on every build and silently drops the grant, while this
+identity keeps it. Without the identity the script falls back to ad-hoc signing and warns.
 
 `gk61-probe` is a command-line check that opens the keyboard and sends only the read-only
 signature query:
@@ -42,6 +48,13 @@ only lets apps open keyboard interfaces with **Input Monitoring** access. On fir
 for it. If you denied it, open **System Settings › Privacy & Security › Input Monitoring**, turn on
 GK61 (or the terminal you ran `swift run` from), then click **Reconnect**. If it still fails, quit
 and reopen the app. The Device page has a button that opens that settings pane.
+
+If GK61 is switched on there but the app still asks for access, the grant belongs to an older
+signature. Reset it, then reopen the app and allow it again:
+
+```sh
+tccutil reset ListenEvent local.gk61.config
+```
 
 ## What it does
 
