@@ -1,9 +1,9 @@
 import Foundation
+import GK61Core
 import GK61HID
 
-// Read-only probe: finds and opens the vendor channel, then listens. It sends nothing.
-
-let listenSeconds = 3.0
+// Probe: opens the vendor channel and sends only GetPSD, the read-only query the
+// Windows driver sends on every connect. Every packet in and out is printed.
 
 let transport = try HIDKeyboardTransport.openFirstKeyboard()
 let info = transport.info
@@ -11,21 +11,41 @@ print("Opened \(info.productName) VID 0x\(hex(info.vendorID)) PID 0x\(hex(info.p
       "version 0x\(hex(info.versionNumber))",
       "in/out report bytes \(info.maxInputReportSize)/\(info.maxOutputReportSize)")
 
-let listener = Task {
-    for await payload in transport.incomingReports {
-        print("IN  " + payload.map { hex($0) }.joined(separator: " "))
+let session = KeyboardSession(transport: LoggingTransport(wrapping: transport))
+let psd = try await session.readPSD()
+print("PSD \(hex(psd.first)) \(hex(psd.second))")
+
+/// Prints every payload that crosses the transport.
+struct LoggingTransport: KeyboardTransport {
+    let incomingReports: AsyncStream<[UInt8]>
+    private let wrapped: KeyboardTransport
+
+    init(wrapping wrapped: KeyboardTransport) {
+        self.wrapped = wrapped
+        let replies = wrapped.incomingReports
+        incomingReports = AsyncStream { continuation in
+            let forwarder = Task {
+                for await payload in replies {
+                    print("IN  " + hexDump(payload))
+                    continuation.yield(payload)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in forwarder.cancel() }
+        }
+    }
+
+    func send(_ payload: [UInt8]) throws {
+        print("OUT " + hexDump(payload))
+        try wrapped.send(payload)
     }
 }
-try await Task.sleep(for: .seconds(listenSeconds))
-listener.cancel()
-print("Listened \(Int(listenSeconds)) s; nothing was sent.")
+
+func hexDump(_ payload: [UInt8]) -> String {
+    payload.map { hex($0) }.joined(separator: " ")
+}
 
 func hex(_ value: some BinaryInteger) -> String {
-    String(value, radix: 16, uppercase: true).leftPadded(to: 2)
-}
-
-extension String {
-    func leftPadded(to width: Int) -> String {
-        String(repeating: "0", count: max(0, width - count)) + self
-    }
+    let digits = String(value, radix: 16, uppercase: true)
+    return String(repeating: "0", count: max(0, 2 - digits.count)) + digits
 }
