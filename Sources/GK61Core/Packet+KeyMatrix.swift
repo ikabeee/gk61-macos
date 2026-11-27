@@ -6,10 +6,16 @@ extension Packet {
         keyMatrixPackets(layer: .normal, table: keyTable(layout, actions: actions))
     }
 
-    /// SetFnMatrix with every key on its firmware default. The Windows driver always sends the Fn
-    /// table right after the normal one; the firmware only takes the new keymap once both arrive.
+    /// SetFnMatrix: what each key sends while Fn is held. Keys without an action keep their factory
+    /// Fn function. The Windows driver always sends the Fn table right after the normal one; the
+    /// firmware only takes the new keymap once both arrive. Macros are not supported on the Fn layer.
+    public static func fnKeyMatrix(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [Packet] {
+        keyMatrixPackets(layer: .fn, table: keyTable(layout, actions: actions))
+    }
+
+    /// SetFnMatrix with every key on its factory Fn function.
     public static func defaultFnKeyMatrix(_ layout: KeyLayout) -> [Packet] {
-        keyMatrixPackets(layer: .fn, table: keyTable(layout, actions: [:]))
+        fnKeyMatrix(layout, actions: [:])
     }
 
     private static func keyTable(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [UInt8] {

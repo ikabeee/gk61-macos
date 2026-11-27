@@ -50,4 +50,14 @@ struct PacketEncoderTests {
         // Fn is matrix index 118 → table offset 708 → packet 14, data offset 6.
         #expect(packets[13].bytes[(6 + 6)...(6 + 11)] == [118, 0, 0, 0, 0, 0])
     }
+
+    @Test("SetFnMatrix carries the Fn-layer actions: Fn+Enter sending F24")
+    func encodesFnLayerActions() throws {
+        let packets = Packet.fnKeyMatrix(try KeyLayout.gk61(), actions: [76: .remap(toUsage: 0x73)])
+
+        #expect(packets.count == 14)
+        // Enter is matrix index 76 → table offset 456 → packet 9, data offset 24.
+        #expect(packets[8].bytes[0...5] == [0xA0, 0x02, 0x05, 0x09, 0x0E, 0xA5])
+        #expect(packets[8].bytes[(6 + 24)...(6 + 29)] == [76, 0xFC, 0x00, 0x73, 0x00, 0])
+    }
 }

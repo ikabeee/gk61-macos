@@ -26,6 +26,19 @@ struct KeyboardSessionTests {
         #expect(keyboard.sentPayloads == expected.map(\.bytes))
     }
 
+    @Test("applyKeymap writes the Fn-layer actions into the Fn table after the normal table")
+    func appliesFnLayerActions() async throws {
+        let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
+        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero, pauseAfterOperation: .zero)
+        let layout = try KeyLayout.gk61()
+        let fnActions: [Int: KeyAction] = [76: .remap(toUsage: 0x73)]
+
+        try await session.applyKeymap(layout, actions: [:], fnActions: fnActions)
+
+        let expected = Packet.keyMatrix(layout, actions: [:]) + Packet.fnKeyMatrix(layout, actions: fnActions)
+        #expect(keyboard.sentPayloads == expected.map(\.bytes))
+    }
+
     @Test("applyKeymap with macro keys frees the buffers, uploads each key's macro in matrix order, then writes both matrices")
     func appliesKeymapWithMacros() async throws {
         let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }

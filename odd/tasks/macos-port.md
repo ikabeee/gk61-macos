@@ -16,6 +16,7 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - S6. Macros: "Wire up macros" with the "Library + assign" design — the Macros page holds named macros recorded by typing in the app, with editable steps and delays; the Keys inspector assigns a library macro to a key and picks how it repeats; one macro can go on several keys.
 - S7. Macro keys survive save and reload: the applied configuration and the macro library persist to JSON without losing macros.
 - S8. Test seams (user choice): "Recording → steps", "Saved-format round trip", "macOS key → HID table".
+- S9. Arrow mode: "Lo que necesito dentro de la app un macro que me permita cambiar entre las flechas sin apretar el fn y en su modo normal por ejemplo en el rk61 apretando fn + enter pasa a modo de flechas". Design (user choice "Fn+Enter toggle (Recommended)"): the keyboard's Fn layer gets Fn+Enter → F24; the app listens for F24 from the GK61 and toggles a macOS key mapping, scoped to the GK61, that turns / → ↑, RAlt → ←, App → ↓, RCtrl → → and back. Needs the app open; macOS only. Tests at the agreed packet-encoder seam; the IOKit listener and the hidutil mapping are adapters verified by hand.
 
 ## Tasks
 
@@ -33,6 +34,9 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T10 | S6, S8 | HID: macOS key code → HID usage table | inline | done | RED→GREEN: 10 sampled keys + Fn has none; GK61HIDTests target |
 | T11 | S7, S8 | Storage module: applied config + macro library JSON round trip | inline | done | RED (macro lost on save) →GREEN; library + key-link round trips; previous-format file pinned; 5 storage tests |
 | T12 | S6, S7 | App: macro library store, Macros page, recording, key assignment | inline | done | 9f371f4; swift test 40/40 (3 targets); app checked: empty states, New Macro, Record/Stop state, delete |
+| T13 | S9 | Core: Fn-layer key actions in the keymap write (Fn+Enter → F24) | inline | pending | |
+| T14 | S9 | HID: F24 listener on the GK61 keyboard interface + hidutil arrow mapping adapter | inline | pending | |
+| T15 | S9 | App: arrow mode state, Fn+Enter setup, toggle, status indicator, clear mapping on quit | inline | pending | |
 
 ## Log
 
@@ -52,3 +56,4 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - L14 (2026-11-27) Hardware macro test, user-authorized ("Yes, try a macro"): after Brave released Secure Event Input, Reconnect succeeded. Recorded `g` `k` in the app (4 steps: Press G 0 ms, Release G 196 ms, Press K 9 ms, Release K), assigned "Macro 1" to the App key (matrix 115), repeat once, Apply at 20:02:00Z with no error (macro upload + normal + default Fn tables). User confirmed on the keyboard: "Yes, types gk". Macro upload, key-matrix macro entry (type 5) and in-app recording are verified on hardware. CapsLock untouched. The App key still plays the macro.
 - L15 (2026-11-27) User: "Yes, restore it". App key set to "Use Default" and applied at 20:04:26Z with no error; last-applied.json keyActions and macroSources are empty (factory keymap, normal + default Fn tables). "Macro 1" stays in the macro library, unassigned. User confirmed on the keyboard: "Yes, it's back".
 - L16 (2026-11-27) User: "Yes, fix the message". 556f20a: DeviceErrorText maps openFailed/sendFailed(kIOReturnNotPermitted) to a secure-input explanation with the recovery step (click outside the password field, reconnect; else check Input Monitoring). Device page and Apply alert share it. IOReturn now prints as unsigned hex. Checked: the observed -0x1FFFFD1E equals kIOReturnNotPermitted (0xE00002E2); swift test 40/40; rebuilt app connects. Not verified: the new text on screen (needs secure input on; no App test seam).
+- L17 (2026-11-27) User: "Lo que necesito dentro de la app un macro que me permita cambiar entre las flechas sin apretar el fn y en su modo normal por ejemplo en el rk61 apretando fn + enter pasa a modo de flechas". Findings: Windows Cfg [FN] puts arrows on Fn + / (↑), RAlt (←), App (↓), RCtrl (→); Funkey.ini and text.xml expose no layer-lock or arrow-toggle function; Fn+Enter is plain Enter. Zero codes in our Fn table keep the factory Fn functions. User chose "Fn+Enter toggle (Recommended)". Route: inline (dependent units, no writer trigger). Writing Fn+Enter to the keyboard was part of the chosen option; announce it before applying; never touch CapsLock.

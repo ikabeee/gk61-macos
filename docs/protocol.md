@@ -128,7 +128,7 @@ During Apply (`fcn.00408ea0`), the driver counts entries with c1 in `F0`…`F3` 
   (`0x4382ab`–`0x4382e2`). Each chunk waits for the `A8` acknowledgement, then 30 ms.
 - With no macro keys, no macro command is sent, so buffers from an earlier Apply presumably stay allocated [I].
 
-The port uploads normal-layer macro keys only (the Fn layer is not written), paces with the acknowledgements,
+The port uploads normal-layer macro keys only (the Fn layer takes key actions, never macros), paces with the acknowledgements,
 30 ms after each chunk, and 100 ms after `AA` and after each macro.
 
 ## Backlight [V]
