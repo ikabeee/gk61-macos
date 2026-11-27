@@ -56,6 +56,14 @@ struct OperationFailure: Identifiable {
             offersReconnect: true)
     }
 
+    static func loginItemFailed(_ error: any Error) -> OperationFailure {
+        OperationFailure(
+            title: "Couldn't Change Open at Login",
+            message: error.localizedDescription,
+            recovery: "Add GK61 by hand in System Settings › General › Login Items.",
+            offersReconnect: false)
+    }
+
     static func macroLibraryLoadFailed(_ error: any Error) -> OperationFailure {
         OperationFailure(
             title: "Couldn't Read Your Macros",

@@ -8,6 +8,7 @@ import SwiftUI
 struct GK61App: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var launch = AppLaunch.start()
+    @State private var loginItem = LoginItem()
 
     var body: some Scene {
         Window("GK61", id: "main") {
@@ -25,7 +26,7 @@ struct GK61App: App {
 
         MenuBarExtra(isInserted: .constant(launch.store != nil)) {
             if let store = launch.store {
-                MenuBarMenu(store: store)
+                MenuBarMenu(store: store, loginItem: loginItem)
             }
         } label: {
             Image(systemName: launch.store?.isArrowModeOn == true ? arrowModeSymbol : "keyboard")
@@ -39,11 +40,20 @@ struct GK61App: App {
 /// Keeps arrow mode reachable after the window closes; the app keeps running until you quit it here.
 private struct MenuBarMenu: View {
     let store: ConfiguratorStore
+    let loginItem: LoginItem
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Toggle("Arrow Mode", isOn: arrowModeBinding)
         Text("Fn+Enter on the keyboard also switches it")
+        Divider()
+        Toggle("Open at Login", isOn: opensAtLoginBinding)
+        if loginItem.needsApproval {
+            Button("Allow in Login Items Settings…", action: loginItem.openLoginItemsSettings)
+        }
+        if let failure = loginItem.failure {
+            Text("\(failure.title): \(failure.message)")
+        }
         Divider()
         Button("Open GK61") {
             openWindow(id: "main")
@@ -56,6 +66,10 @@ private struct MenuBarMenu: View {
 
     private var arrowModeBinding: Binding<Bool> {
         Binding { store.isArrowModeOn } set: { if $0 != store.isArrowModeOn { store.toggleArrowMode() } }
+    }
+
+    private var opensAtLoginBinding: Binding<Bool> {
+        Binding { loginItem.opensAtLogin } set: { loginItem.setOpensAtLogin($0) }
     }
 }
 
