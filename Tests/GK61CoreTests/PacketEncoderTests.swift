@@ -60,4 +60,11 @@ struct PacketEncoderTests {
         #expect(packets[8].bytes[0...5] == [0xA0, 0x02, 0x05, 0x09, 0x0E, 0xA5])
         #expect(packets[8].bytes[(6 + 24)...(6 + 29)] == [76, 0xFC, 0x00, 0x73, 0x00, 0])
     }
+
+    @Test("The keyboard toggles put Fn+Enter on F24 and Fn+Left Win on F23")
+    func keyboardToggleFnActions() throws {
+        let actions = KeyboardToggle.fnActions(for: try KeyLayout.gk61())
+
+        #expect(actions == [76: .remap(toUsage: 0x73), 106: .remap(toUsage: 0x72)])
+    }
 }

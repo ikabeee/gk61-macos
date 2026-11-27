@@ -57,7 +57,7 @@ struct RootView: View {
             KeysPage(
                 keys: store.layout.keys, keyActions: store.draftKeyActions, pendingKeyIDs: store.pendingKeyIDs,
                 macros: store.macros, macroSources: store.draftMacroSources,
-                selectedKeyID: $store.selectedKeyID, editing: keyEditing, arrowMode: arrowModeBox)
+                selectedKeyID: $store.selectedKeyID, editing: keyEditing, toggles: togglesBox)
         case .lighting:
             LightingPage(
                 lighting: store.draftLighting, keys: store.layout.keys,
@@ -66,7 +66,7 @@ struct RootView: View {
             MacrosPage(macros: store.macros, keyLabels: keyLabels(playing:), editing: macroEditing)
         case .shortcuts:
             ShortcutsPage(
-                keys: store.layout.keys, shortcuts: FnShortcut.factory(includingArrowToggle: store.isArrowToggleInstalled))
+                keys: store.layout.keys, shortcuts: FnShortcut.factory(appToggles: Set(KeyboardToggle.allCases.filter(store.isInstalled))))
         case .device:
             DevicePage(
                 connection: store.connection, lastAppliedAt: store.applied.appliedAt,
@@ -121,13 +121,13 @@ struct RootView: View {
             openMacros: { section = .macros })
     }
 
-    private var arrowModeBox: ArrowModeBox {
-        ArrowModeBox(
-            isOn: store.isArrowModeOn, isToggleInstalled: store.isArrowToggleInstalled,
-            installBlocker: StatusText.arrowToggleInstallBlocker(store.applyBlocker),
-            actions: ArrowModeActions(
-                toggle: store.toggleArrowMode,
-                installToggle: { Task { await store.installArrowToggle() } }))
+    private var togglesBox: KeyboardTogglesBox {
+        KeyboardTogglesBox(
+            activeToggles: store.activeToggles, areTogglesInstalled: store.areAllTogglesInstalled,
+            installBlocker: StatusText.toggleInstallBlocker(store.applyBlocker),
+            actions: KeyboardToggleActions(
+                toggle: store.toggle,
+                install: { Task { await store.installToggles() } }))
     }
 
     private var arrowModeBinding: Binding<Bool> {
@@ -212,8 +212,8 @@ private enum StatusText {
         }
     }
 
-    /// Setting up Fn+Enter writes the applied keymap, so it needs everything Apply needs except pending changes.
-    static func arrowToggleInstallBlocker(_ blocker: ApplyBlocker?) -> String? {
+    /// Setting up the Fn keys writes the applied keymap, so it needs everything Apply needs except pending changes.
+    static func toggleInstallBlocker(_ blocker: ApplyBlocker?) -> String? {
         switch blocker {
         case nil, .nothingPending: nil
         case .applying, .disconnected, .unsupportedKeyboard: applyHelp(blocker)

@@ -1,3 +1,5 @@
+import GK61Core
+
 /// What the keyboard does with Fn held, as shipped. Decoded from the Windows driver's factory Fn table
 /// (Cfg.ini [FN]) and its keycap legends (skins/keyimg.png). The app writes zeros for these keys, which
 /// keeps the firmware's own Fn function.
@@ -25,13 +27,23 @@ struct FnShortcut: Identifiable {
 }
 
 extension FnShortcut {
-    static func factory(includingArrowToggle: Bool) -> [FnShortcut] {
-        includingArrowToggle ? factoryLayer + [arrowToggle] : factoryLayer
+    /// The factory layer, with the Fn keys GK61 has taken over (`appToggles`) described as GK61's.
+    static func factory(appToggles: Set<KeyboardToggle>) -> [FnShortcut] {
+        let commandLock = appToggles.contains(.commandLock) ? appCommandLock : firmwareCommandLock
+        let shortcuts = factoryLayer + [commandLock]
+        return appToggles.contains(.arrowMode) ? shortcuts + [arrowToggle] : shortcuts
     }
 
     private static let arrowToggle = FnShortcut(
         usage: 0x28, legend: "⇅", name: "Arrow mode on or off", group: .arrows,
         note: "Added by this app; works while GK61 is running")
+
+    private static let firmwareCommandLock = FnShortcut(
+        usage: 0xE3, legend: "🔒", name: "Lock the Command (Windows) key", group: .keyboard)
+
+    private static let appCommandLock = FnShortcut(
+        usage: 0xE3, legend: "🔒", name: "Lock the Command (Windows) key", group: .keyboard,
+        note: "Added by this app; lights the key red while GK61 is running")
 
     private static let factoryLayer: [FnShortcut] = media + functionKeys + navigation + arrows + keyboard
 
@@ -75,7 +87,6 @@ extension FnShortcut {
     private static let onboardMacro = "Keycap legend; not tested on this keyboard"
 
     private static let keyboard: [FnShortcut] = [
-        FnShortcut(usage: 0xE3, legend: "🔒", name: "Lock the Command (Windows) key", group: .keyboard),
         FnShortcut(usage: 0x2B, legend: "●", name: "Record an onboard macro", group: .keyboard, note: onboardMacro),
         FnShortcut(usage: 0x14, legend: "M1", name: "Onboard macro 1", group: .keyboard, note: onboardMacro),
         FnShortcut(usage: 0x1A, legend: "M2", name: "Onboard macro 2", group: .keyboard, note: onboardMacro),

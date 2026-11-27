@@ -46,7 +46,7 @@ struct LightingEncoderTests {
 
     @Test("Arrow mode lights /, Right Alt, App and Right Ctrl in white on custom mode 7 and leaves the rest dark")
     func arrowModeLighting() throws {
-        let packets = Packet.lighting(ArrowMode.lighting(for: try KeyLayout.gk61())).map(\.bytes)
+        let packets = Packet.lighting(KeyboardToggle.lighting(for: try KeyLayout.gk61(), showing: [.arrowMode])).map(\.bytes)
 
         #expect(packets.allSatisfy { $0[0...7] == [0xAE, 0x01, 0x00, 0x00, 0x1F, 0x00, 0x04, 0xFF] })
         // / is slot 95: packet 8, entry 5. Right Alt is slot 114: packet 9, entry 11.
@@ -54,6 +54,19 @@ struct LightingEncoderTests {
         #expect(packets[8][(8 + 10 * 4)...(8 + 10 * 4 + 3)] == [0xF2, 0xFF, 0xFF, 0xFF])
         // Enter (slot 76) stays dark: packet 6, entry 11.
         #expect(packets[5][(8 + 11 * 4)...(8 + 11 * 4 + 3)] == [0xCC, 0, 0, 0])
+    }
+
+    @Test("Cmd lock lights Left Win in red, next to the arrow-mode keys when both are on")
+    func commandLockLighting() throws {
+        let layout = try KeyLayout.gk61()
+        let lockOnly = Packet.lighting(KeyboardToggle.lighting(for: layout, showing: [.commandLock])).map(\.bytes)
+        let both = Packet.lighting(KeyboardToggle.lighting(for: layout, showing: [.arrowMode, .commandLock])).map(\.bytes)
+
+        // Left Win is slot 106: packet 9, entry 3. / (slot 95) is packet 8, entry 5.
+        #expect(lockOnly[8][(8 + 2 * 4)...(8 + 2 * 4 + 3)] == [0xEA, 0xFF, 0x00, 0x00])
+        #expect(lockOnly[7][(8 + 4 * 4)...(8 + 4 * 4 + 3)] == [0xDF, 0, 0, 0])
+        #expect(both[8][(8 + 2 * 4)...(8 + 2 * 4 + 3)] == [0xEA, 0xFF, 0x00, 0x00])
+        #expect(both[7][(8 + 4 * 4)...(8 + 4 * 4 + 3)] == [0xDF, 0xFF, 0xFF, 0xFF])
     }
 
     private func zeros(_ count: Int) -> [UInt8] {

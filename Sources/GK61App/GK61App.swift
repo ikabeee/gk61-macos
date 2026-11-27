@@ -44,8 +44,9 @@ private struct MenuBarMenu: View {
     @Environment(\.openWindow) private var openWindow
 
     var body: some View {
-        Toggle("Arrow Mode", isOn: arrowModeBinding)
-        Text("Fn+Enter on the keyboard also switches it")
+        Toggle("Arrow Mode", isOn: binding(for: .arrowMode))
+        Toggle("Cmd Lock", isOn: binding(for: .commandLock))
+        Text("Fn+Enter and Fn+Win on the keyboard also switch them")
         Divider()
         Toggle("Open at Login", isOn: opensAtLoginBinding)
         if loginItem.needsApproval {
@@ -64,8 +65,10 @@ private struct MenuBarMenu: View {
             .keyboardShortcut("q")
     }
 
-    private var arrowModeBinding: Binding<Bool> {
-        Binding { store.isArrowModeOn } set: { if $0 != store.isArrowModeOn { store.toggleArrowMode() } }
+    private func binding(for toggle: KeyboardToggle) -> Binding<Bool> {
+        Binding { store.activeToggles.contains(toggle) } set: { isOn in
+            if isOn != store.activeToggles.contains(toggle) { store.toggle(toggle) }
+        }
     }
 
     private var opensAtLoginBinding: Binding<Bool> {

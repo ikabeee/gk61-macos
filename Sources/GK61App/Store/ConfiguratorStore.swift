@@ -17,14 +17,14 @@ final class ConfiguratorStore {
     /// The library macro each macro key in the draft plays, by matrix index.
     private(set) var draftMacroSources: [Int: UUID]
     private(set) var macros: [MacroDefinition]
-    /// Whether / , Right Option, App and Right Control send arrows on this Mac right now.
-    private(set) var isArrowModeOn = false
+    /// The keyboard toggles (arrow mode, Cmd lock) that are on on this Mac right now.
+    private(set) var activeToggles: Set<KeyboardToggle> = []
     var selectedKeyID: KeyLayout.Key.ID?
     var failure: OperationFailure?
 
     @ObservationIgnored private var session: KeyboardSession?
-    @ObservationIgnored private var arrowToggleListener: KeyPressListener?
-    @ObservationIgnored fileprivate var arrowLightingWrite: Task<Void, Never>?
+    @ObservationIgnored fileprivate var toggleListener: KeyPressListener?
+    @ObservationIgnored fileprivate var toggleLightingWrite: Task<Void, Never>?
     @ObservationIgnored private let configurationFile: ConfigurationFile
     @ObservationIgnored let macroLibraryFile: MacroLibraryFile
 
@@ -39,7 +39,7 @@ final class ConfiguratorStore {
         macros = []
         restoreAppliedConfiguration()
         restoreMacroLibrary()
-        applyArrowMode(false)
+        applyMacMapping(for: [])
     }
 
     // MARK: Status
@@ -69,8 +69,8 @@ final class ConfiguratorStore {
         connection = .connecting
         do {
             connection = .connected(try await openSession())
-            listenForArrowToggle()
-            showArrowModeOnKeyboard()
+            listenForToggles()
+            showTogglesOnKeyboard()
         } catch {
             connection = ConnectionState(connectionError: error)
         }
@@ -109,7 +109,7 @@ final class ConfiguratorStore {
         applyStep = .lighting
         let lighting = draftLighting
         try await session.applyLighting(lighting)
-        keyboardShowsArrowLighting = false
+        keyboardShownToggles = []
         recordApplied { $0.lighting = lighting }
         try await Task.sleep(for: Self.pauseBetweenOperations)
     }
@@ -119,7 +119,7 @@ final class ConfiguratorStore {
         applyStep = .keymap
         let actions = draftKeyActions
         let sources = draftMacroSources
-        let fnActions = ArrowMode.fnActions(for: layout)
+        let fnActions = KeyboardToggle.fnActions(for: layout)
         try await session.applyKeymap(layout, actions: actions, fnActions: fnActions)
         recordApplied {
             $0.keyActions = actions
@@ -325,25 +325,35 @@ extension ConfiguratorStore {
     }
 }
 
-/// Arrow mode: Fn+Enter on the keyboard sends F24, and the store swaps the keys under the right Shift
-/// to arrows on this Mac. The swap is undone when the app starts or quits, so it never outlives the app.
+/// Keyboard toggles: Fn+Enter (arrow mode) and Fn+Left Win (Cmd lock) send F24 and F23; the store changes
+/// the keys on this Mac and lights them on the keyboard. The Mac mapping is undone when the app starts or
+/// quits, so it never outlives the app.
 extension ConfiguratorStore {
-    /// True once the keyboard's Fn layer has Fn+Enter sending the toggle.
-    var isArrowToggleInstalled: Bool {
-        applied.fnKeyActions == ArrowMode.fnActions(for: layout)
+    var isArrowModeOn: Bool { activeToggles.contains(.arrowMode) }
+    var isCommandLockOn: Bool { activeToggles.contains(.commandLock) }
+
+    /// True once the keyboard's Fn layer sends this toggle's signal.
+    func isInstalled(_ toggle: KeyboardToggle) -> Bool {
+        guard let fnKey = layout.key(withUsage: toggle.fnKeyUsage) else { return false }
+        return applied.fnKeyActions[fnKey.matrixIndex] == .remap(toUsage: toggle.signalUsage)
     }
 
-    func toggleArrowMode() {
-        applyArrowMode(!isArrowModeOn)
-        showArrowModeOnKeyboard()
+    var areAllTogglesInstalled: Bool { KeyboardToggle.allCases.allSatisfy(isInstalled) }
+
+    func toggleArrowMode() { toggle(.arrowMode) }
+    func toggleCommandLock() { toggle(.commandLock) }
+
+    func toggle(_ toggle: KeyboardToggle) {
+        applyMacMapping(for: activeToggles.symmetricDifference([toggle]))
+        showTogglesOnKeyboard()
     }
 
-    /// Writes the applied keymap again with Fn+Enter added; unapplied key changes stay pending.
-    func installArrowToggle() async {
+    /// Writes the applied keymap again with every toggle's Fn key; unapplied key changes stay pending.
+    func installToggles() async {
         guard applyStep == nil, connection.connectedKeyboard?.isSupported == true, let session else { return }
         applyStep = .keymap
         let actions = applied.keyActions
-        let fnActions = ArrowMode.fnActions(for: layout)
+        let fnActions = KeyboardToggle.fnActions(for: layout)
         do {
             try await session.applyKeymap(layout, actions: actions, fnActions: fnActions)
             recordApplied { $0.fnKeyActions = fnActions }
@@ -353,59 +363,60 @@ extension ConfiguratorStore {
         applyStep = nil
     }
 
-    fileprivate func applyArrowMode(_ isOn: Bool) {
+    fileprivate func applyMacMapping(for toggles: Set<KeyboardToggle>) {
         do {
-            try KeyRemapping.apply(isOn ? ArrowMode.swappedUsages : [:])
-            isArrowModeOn = isOn
+            try KeyRemapping.apply(KeyboardToggle.macMapping(for: toggles))
+            activeToggles = toggles
         } catch {
-            failure = .arrowModeFailed(error)
+            failure = .toggleFailed(error)
         }
     }
 
-    /// Lights the arrow keys while arrow mode is on and puts the applied effect back when it ends.
+    /// Lights the keys of the toggles that are on, and puts the applied effect back when none is.
     /// Writes queue up, so quick toggles end on the latest state.
-    fileprivate func showArrowModeOnKeyboard() {
-        let previousWrite = arrowLightingWrite
-        arrowLightingWrite = Task {
+    fileprivate func showTogglesOnKeyboard() {
+        let previousWrite = toggleLightingWrite
+        toggleLightingWrite = Task {
             await previousWrite?.value
-            await writeArrowModeLighting()
+            await writeToggleLighting()
         }
     }
 
-    private func writeArrowModeLighting() async {
-        let showsArrows = isArrowModeOn
-        guard keyboardShowsArrowLighting != showsArrows, applyStep == nil,
+    private func writeToggleLighting() async {
+        let shown = activeToggles
+        guard keyboardShownToggles != shown, applyStep == nil,
               connection.connectedKeyboard?.isSupported == true, let session else { return }
         applyStep = .lighting
         do {
-            try await session.applyLighting(showsArrows ? ArrowMode.lighting(for: layout) : lightingBaseline)
-            keyboardShowsArrowLighting = showsArrows
+            try await session.applyLighting(shown.isEmpty ? lightingBaseline : KeyboardToggle.lighting(for: layout, showing: shown))
+            keyboardShownToggles = shown
         } catch {
-            failure = .arrowLightingFailed(error)
+            failure = .toggleLightingFailed(error)
         }
         applyStep = nil
     }
 
     /// The keyboard saves its lighting, so this outlives the app: a later connect puts the applied effect back.
-    fileprivate var keyboardShowsArrowLighting: Bool {
-        get { UserDefaults.standard.bool(forKey: Self.arrowLightingKey) }
-        set { UserDefaults.standard.set(newValue, forKey: Self.arrowLightingKey) }
+    fileprivate var keyboardShownToggles: Set<KeyboardToggle> {
+        get { Set((UserDefaults.standard.stringArray(forKey: Self.shownTogglesKey) ?? []).compactMap(KeyboardToggle.init(rawValue:))) }
+        set { UserDefaults.standard.set(newValue.map(\.rawValue).sorted(), forKey: Self.shownTogglesKey) }
     }
 
-    private static let arrowLightingKey = "keyboardShowsArrowLighting"
+    private static let shownTogglesKey = "keyboardShownToggles"
 
-    /// macOS forgets the swap when the keyboard is unplugged, so a reconnected keyboard gets it again.
-    fileprivate func listenForArrowToggle() {
-        guard arrowToggleListener == nil else { return }
+    /// macOS forgets the mapping when the keyboard is unplugged, so a reconnected keyboard gets it again.
+    fileprivate func listenForToggles() {
+        guard toggleListener == nil else { return }
         do {
-            arrowToggleListener = try KeyPressListener(usage: ArrowMode.toggleUsage) { [weak self] in
-                self?.toggleArrowMode()
+            toggleListener = try KeyPressListener(usages: Set(KeyboardToggle.allCases.map(\.signalUsage))) { [weak self] usage in
+                guard let toggle = KeyboardToggle(signalUsage: usage) else { return }
+                self?.toggle(toggle)
             } onKeyboardConnected: { [weak self] in
-                guard let self, isArrowModeOn else { return }
-                applyArrowMode(true)
+                guard let self, !activeToggles.isEmpty else { return }
+                applyMacMapping(for: activeToggles)
             }
         } catch {
-            failure = .arrowModeFailed(error)
+            failure = .toggleFailed(error)
         }
     }
 }

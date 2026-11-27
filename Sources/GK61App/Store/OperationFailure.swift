@@ -48,17 +48,17 @@ struct OperationFailure: Identifiable {
             offersReconnect: false)
     }
 
-    static func arrowModeFailed(_ error: any Error) -> OperationFailure {
+    static func toggleFailed(_ error: any Error) -> OperationFailure {
         OperationFailure(
-            title: "Couldn't Switch Arrow Mode",
+            title: "Couldn't Switch Arrow Mode or Cmd Lock",
             message: DeviceErrorText.describe(error),
             recovery: "Reconnect the keyboard and try again. Your keys keep working as printed meanwhile.",
             offersReconnect: true)
     }
 
-    static func arrowLightingFailed(_ error: any Error) -> OperationFailure {
+    static func toggleLightingFailed(_ error: any Error) -> OperationFailure {
         OperationFailure(
-            title: "Arrow Mode Is On, but the Lights Didn't Change",
+            title: "The Keys Switched, but the Lights Didn't Change",
             message: DeviceErrorText.describe(error),
             recovery: "The keys still switched. Reconnect the keyboard; GK61 updates the lights when it connects.",
             offersReconnect: true)

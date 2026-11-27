@@ -21,7 +21,7 @@ struct KeysPage: View {
     let macroSources: [KeyLayout.Key.ID: MacroDefinition.ID]
     @Binding var selectedKeyID: KeyLayout.Key.ID?
     let editing: KeyEditingActions
-    let arrowMode: ArrowModeBox
+    let toggles: KeyboardTogglesBox
     @State private var showsInspector = true
 
     var body: some View {
@@ -31,7 +31,7 @@ struct KeysPage: View {
                 showsInspector = true
             }
             footer
-            arrowMode
+            toggles
                 .frame(maxWidth: 640)
         }
         .padding(24)
@@ -89,7 +89,7 @@ struct KeysPage: View {
 
     /// In arrow mode, a key left on its default shows the arrow it sends on this Mac.
     private func defaultAppearance(of key: KeyLayout.Key) -> KeyCapAppearance {
-        guard arrowMode.isOn, let usage = key.defaultUsage, let arrow = ArrowMode.arrowUsages[usage] else {
+        guard toggles.activeToggles.contains(.arrowMode), let usage = key.defaultUsage, let arrow = ArrowMode.arrowUsages[usage] else {
             return KeyCapAppearance(caption: key.label, help: "\(key.label): default")
         }
         let symbol = KeyActionText.symbol(for: .remap(toUsage: arrow))
