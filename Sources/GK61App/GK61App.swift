@@ -22,6 +22,40 @@ struct GK61App: App {
         }
         .defaultSize(width: 1100, height: 640)
         .commands { KeyboardCommands(launch: launch) }
+
+        MenuBarExtra(isInserted: .constant(launch.store != nil)) {
+            if let store = launch.store {
+                MenuBarMenu(store: store)
+            }
+        } label: {
+            Image(systemName: launch.store?.isArrowModeOn == true ? arrowModeSymbol : "keyboard")
+                .accessibilityLabel(launch.store?.isArrowModeOn == true ? "GK61, arrow mode on" : "GK61")
+        }
+    }
+
+    private let arrowModeSymbol = "arrow.up.and.down.and.arrow.left.and.right"
+}
+
+/// Keeps arrow mode reachable after the window closes; the app keeps running until you quit it here.
+private struct MenuBarMenu: View {
+    let store: ConfiguratorStore
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Toggle("Arrow Mode", isOn: arrowModeBinding)
+        Text("Fn+Enter on the keyboard also switches it")
+        Divider()
+        Button("Open GK61") {
+            openWindow(id: "main")
+            NSApplication.shared.activate()
+        }
+        Divider()
+        Button("Quit GK61") { NSApplication.shared.terminate(nil) }
+            .keyboardShortcut("q")
+    }
+
+    private var arrowModeBinding: Binding<Bool> {
+        Binding { store.isArrowModeOn } set: { if $0 != store.isArrowModeOn { store.toggleArrowMode() } }
     }
 }
 
@@ -37,6 +71,11 @@ enum AppLaunch {
         } catch {
             return .failed(error.localizedDescription)
         }
+    }
+
+    var store: ConfiguratorStore? {
+        guard case let .ready(store) = self else { return nil }
+        return store
     }
 }
 
@@ -64,8 +103,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate()
     }
 
+    /// The menu bar item keeps arrow mode working with the window closed; quit from that menu.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 
     /// Arrow mode only lives while the app runs. There is no window left to report a failure to.
