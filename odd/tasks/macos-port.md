@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: done
 ---
 # GK61 macOS port
 
@@ -45,7 +45,7 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T17 | S11 | App: Open at Login (SMAppService.mainApp) in the menu bar menu | inline | done | ae1e5be; swift test 43/43 |
 | T18 | S13 | Factory Fn shortcuts map | inline | done | 5ede7e5; swift test 43/43; Shortcuts page checked in the app |
 | T19 | S12 | Light the arrow keys in arrow mode | inline | done | 48e71d1; RED→GREEN arrow-lighting encoder test; swift test 44/44; user confirmed on hardware |
-| T21 | S12 | Cmd lock on Fn+Win, owned by GK61, lit red | inline | in-progress | 3de4c23; RED→GREEN Cmd-lock lighting + toggle Fn-actions tests; swift test 46/46; hardware check pending |
+| T21 | S12 | Cmd lock on Fn+Win, owned by GK61, lit red | inline | done | 3de4c23; RED→GREEN Cmd-lock lighting + toggle Fn-actions tests; swift test 46/46; user confirmed on hardware |
 | T20 | S9 | App: Fn + the arrow keys types the original key in arrow mode (two-way swap) | inline | done | dec0f9f; swift test 43/43; switch on → 16 mappings, off → 0 |
 
 ## Log
@@ -77,3 +77,4 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - L25 (2026-11-27) User confirmed on the keyboard after Fn+Enter: "Sí, se iluminan". Custom mode 7 per-key write verified on hardware. T19 done. Next: Cmd lock (T21) approach.
 - L26 (2026-11-27) User chose "GK61 owns the lock (Recommended)". 3de4c23: KeyboardToggle (arrowMode, commandLock) replaces the arrow-only API: Fn key, signal (F24/F23), Mac mapping (arrow swap / Left Win → usage 0), lit keys (white arrows / red Left Win), combined custom-mode-7 lighting. KeyPressListener takes several usages. Store keeps activeToggles; "Set Up Fn Keys" writes Fn+Enter and Fn+LWin together; menu bar gains a Cmd Lock switch; shortcuts map describes Fn+Win as GK61's once set up. UserDefaults key keyboardShownToggles replaces keyboardShowsArrowLighting (migrated by hand on this Mac: arrowMode). Unverified: macOS docs don't confirm that mapping to usage 0 disables a key (TN2450 only defines 0x700000000|usage) — needs a check on the keyboard. Pending: relaunch (restores the applied effect, since arrow mode starts off), Fn-key setup write, hardware check.
 - L27 (2026-11-27) User: "Sí, relanza" — relaunch wrote the applied Red Ripple back (keyboardShownToggles cleared after the ack; Mac mapping 0). User: "Sí, escríbelo" — "Set Up Fn Keys" written at 21:10:42Z with no error: Fn table 76 (Enter) → F24 0x73, 106 (LWin) → F23 0x72; normal table factory (keyActions empty, CapsLock untouched). Pending: user presses Fn+Win (Left Win lit red, Cmd does nothing) and Fn+Win again.
+- L28 (2026-11-27) User confirmed Fn+Win on the keyboard: "Sí, funciona" (Left Win lit red, Cmd disabled, back on the second press). Mapping a key to usage 0 disables it — verified on hardware, not in Apple docs. S12 met; all tasks T1–T21 done; feature closed. Review assess over dec0f9f~1..HEAD: risk medium, review_due false (under_budget). Pending checks: Fn + / typing / in arrow mode not explicitly confirmed by the user; M1–M3, Tab record and the lighting Fn keys untested; quitting with a toggle on leaves its lights until the next connect. Nothing pushed; push/PR are the user's call. Next step: none requested.
