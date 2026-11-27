@@ -46,11 +46,13 @@ public actor KeyboardSession {
         return PSD(reply[4], reply[5])
     }
 
-    /// Writes the normal-layer key matrix. Keys missing from `actions` revert to the firmware default.
-    /// Macro keys first get their macros uploaded, as the Windows driver does on Apply.
+    /// Writes the normal-layer key matrix, then the Fn layer on its defaults: the firmware ignores
+    /// the normal table until the Fn table follows, so Apply always sends both, like the Windows driver.
+    /// Keys missing from `actions` revert to the firmware default. Macro keys first get their macros uploaded.
     public func applyKeymap(_ layout: KeyLayout, actions: [Int: KeyAction]) async throws {
         try await uploadMacros(MacroBuffer.assign(layout, actions: actions))
-        try await sendChunks(Packet.keyMatrix(layout, actions: actions))
+        try await sendOperation(Packet.keyMatrix(layout, actions: actions))
+        try await sendChunks(Packet.defaultFnKeyMatrix(layout))
     }
 
     public func applyLighting(_ lighting: Lighting) async throws {

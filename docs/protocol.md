@@ -32,7 +32,7 @@ Below, offsets are **payload** offsets (report byte = offset + 1).
 | Payload | Purpose | Ack | Notes |
 |---|---|---|---|
 | `A0 02 00 01` | Get PSD (read-only) | `A0` | Reply echoes bytes 0–3, PSD at `p[4], p[5]`, rest zero. Observed on PID 0x00F7 fw 0x103: `0F 0B` (= `00F7-2` Cfg) |
-| `A0 02 03` | Reset key matrix to factory | none | Persistent |
+| `A0 02 03` | "ResetMatrix" (Windows log name); see Apply order | none | Purpose unconfirmed [I] |
 | `A0 02 04 seq 0E A5 <54 B> … [60]=A5` | Write normal-layer key matrix, packet `seq` = 1…14 | `A0` each | 14 × 54 B = 756 B |
 | `A0 02 05 …` | Write Fn-layer key matrix | `A0` each | Same layout as `A0 02 04` |
 | `AE 01 00 00 mode speed bright color [7]=… [8..]` | Set backlight | `AE` | Per-key data for custom modes, see below |
@@ -50,7 +50,11 @@ The Apply order (`fcn.00408ea0`) is:
 1. backlight;
 2. side light;
 3. macros, if any key uses one (`AA`, then `A7` and `A8…` per macro key, see Macro upload), then the normal matrix, then the Fn matrix;
-4. reset matrix.
+4. `A0 02 03`, only when the caller sets flag `0x100` (`0x409724`; sent without waiting for a reply). Its purpose is unconfirmed [I].
+
+The keys flag (`0x408f8c`: `test bl, 1`) always writes both tables, normal then Fn, 50 ms apart (`0x4096b2`–`0x4096f3`).
+Keys without an Fn function get `[index, 00 00 00 00, 00]` in the Fn table (`fcn.00408770`). Verified on the
+GK61 (PID 0x00F7, fw 1.03): a normal table sent alone is acknowledged but has no effect. [V]
 
 ## Key matrix [V]
 

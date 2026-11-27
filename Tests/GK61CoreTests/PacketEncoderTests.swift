@@ -37,4 +37,17 @@ struct PacketEncoderTests {
 
         #expect(packets[7].bytes[6...11] == [63, 0xFC, 0x00, 0x04, 0x00, 0x00])
     }
+
+    @Test("The default Fn matrix is 14 SetFnMatrix packets naming every key with a zero (firmware default) code")
+    func encodesDefaultFnMatrix() throws {
+        let packets = Packet.defaultFnKeyMatrix(try KeyLayout.gk61())
+
+        #expect(packets.count == 14)
+        #expect(packets[2].bytes[0...5] == [0xA0, 0x02, 0x05, 0x03, 0x0E, 0xA5])
+        #expect(packets[2].bytes[60] == 0xA5)
+        // Esc is matrix index 21 → packet 3, data offset 18.
+        #expect(packets[2].bytes[(6 + 18)...(6 + 23)] == [21, 0, 0, 0, 0, 0])
+        // Fn is matrix index 118 → table offset 708 → packet 14, data offset 6.
+        #expect(packets[13].bytes[(6 + 6)...(6 + 11)] == [118, 0, 0, 0, 0, 0])
+    }
 }

@@ -14,18 +14,19 @@ struct KeyboardSessionTests {
         #expect(keyboard.sentPayloads == [Packet.getPSD.bytes])
     }
 
-    @Test("applyKeymap sends the 14 SetMatrix packets in order, each acknowledged by A0")
+    @Test("applyKeymap sends the 14 SetMatrix packets, then the 14 default SetFnMatrix packets, each acknowledged by A0")
     func appliesKeymap() async throws {
         let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
-        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero)
+        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero, pauseAfterOperation: .zero)
         let layout = try KeyLayout.gk61()
 
         try await session.applyKeymap(layout, actions: [63: .remap(toUsage: 0xE0)])
 
-        #expect(keyboard.sentPayloads == Packet.keyMatrix(layout, actions: [63: .remap(toUsage: 0xE0)]).map(\.bytes))
+        let expected = Packet.keyMatrix(layout, actions: [63: .remap(toUsage: 0xE0)]) + Packet.defaultFnKeyMatrix(layout)
+        #expect(keyboard.sentPayloads == expected.map(\.bytes))
     }
 
-    @Test("applyKeymap with macro keys frees the buffers, uploads each key's macro in matrix order, then writes the matrix")
+    @Test("applyKeymap with macro keys frees the buffers, uploads each key's macro in matrix order, then writes both matrices")
     func appliesKeymapWithMacros() async throws {
         let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
         let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero, pauseAfterOperation: .zero)
@@ -41,6 +42,7 @@ struct KeyboardSessionTests {
             + Packet.macroUpload(scroll, bufferID: 1)
             + Packet.macroUpload(tap, bufferID: 2)
             + Packet.keyMatrix(layout, actions: actions)
+            + Packet.defaultFnKeyMatrix(layout)
         #expect(keyboard.sentPayloads == expected.map(\.bytes))
     }
 

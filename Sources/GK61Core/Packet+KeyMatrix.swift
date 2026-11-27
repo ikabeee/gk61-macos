@@ -3,10 +3,13 @@ extension Packet {
     /// Keys without an action get a zero code, which the firmware treats as its default.
     /// Macro keys point at the buffers `KeyboardSession.applyKeymap` uploads their macros to.
     public static func keyMatrix(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [Packet] {
-        let table = keyTable(layout, actions: actions)
-        return stride(from: 0, to: table.count, by: KeyMatrix.bytesPerPacket).enumerated().map { number, offset in
-            keyMatrixPacket(sequence: UInt8(number + 1), data: table[offset..<offset + KeyMatrix.bytesPerPacket])
-        }
+        keyMatrixPackets(layer: .normal, table: keyTable(layout, actions: actions))
+    }
+
+    /// SetFnMatrix with every key on its firmware default. The Windows driver always sends the Fn
+    /// table right after the normal one; the firmware only takes the new keymap once both arrive.
+    public static func defaultFnKeyMatrix(_ layout: KeyLayout) -> [Packet] {
+        keyMatrixPackets(layer: .fn, table: keyTable(layout, actions: [:]))
     }
 
     private static func keyTable(_ layout: KeyLayout, actions: [Int: KeyAction]) -> [UInt8] {
@@ -21,13 +24,21 @@ extension Packet {
         return table
     }
 
-    private static func keyMatrixPacket(sequence: UInt8, data: ArraySlice<UInt8>) -> Packet {
-        let header: [UInt8] = [0xA0, 0x02, 0x04, sequence, 0x0E, 0xA5]
-        return Packet(header + data + [0xA5])
+    private static func keyMatrixPackets(layer: KeyMatrix.Layer, table: [UInt8]) -> [Packet] {
+        stride(from: 0, to: table.count, by: KeyMatrix.bytesPerPacket).enumerated().map { number, offset in
+            let header: [UInt8] = [0xA0, 0x02, layer.rawValue, UInt8(number + 1), 0x0E, 0xA5]
+            return Packet(header + table[offset..<offset + KeyMatrix.bytesPerPacket] + [0xA5])
+        }
     }
 }
 
 enum KeyMatrix {
+    /// Third header byte of a matrix write.
+    enum Layer: UInt8 {
+        case normal = 0x04
+        case fn = 0x05
+    }
+
     static let slotCount = 126
     static let bytesPerEntry = 6
     static let bytesPerPacket = 54
