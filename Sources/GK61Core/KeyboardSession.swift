@@ -17,14 +17,20 @@ public enum KeyboardSessionError: Error, Equatable {
 public actor KeyboardSession {
     private let transport: KeyboardTransport
     private let acknowledgementTimeout: Duration
+    private let pauseAfterChunk: Duration
     private var pendingReply: PendingReply?
     private var lastExchangeID = 0
     private var listener: Task<Void, Never>?
 
-    /// The Windows driver waits about 2 s for each acknowledgement.
-    public init(transport: KeyboardTransport, acknowledgementTimeout: Duration = .seconds(2)) {
+    /// Defaults match the Windows driver: about 2 s per acknowledgement, 30 ms between chunks.
+    public init(
+        transport: KeyboardTransport,
+        acknowledgementTimeout: Duration = .seconds(2),
+        pauseAfterChunk: Duration = .milliseconds(30)
+    ) {
         self.transport = transport
         self.acknowledgementTimeout = acknowledgementTimeout
+        self.pauseAfterChunk = pauseAfterChunk
     }
 
     deinit {
@@ -34,6 +40,18 @@ public actor KeyboardSession {
     public func readPSD() async throws -> PSD {
         let reply = try await exchange(.getPSD)
         return PSD(reply[4], reply[5])
+    }
+
+    /// Writes the normal-layer key matrix. Keys missing from `actions` revert to the firmware default.
+    public func applyKeymap(_ layout: KeyLayout, actions: [Int: KeyAction]) async throws {
+        try await sendChunks(Packet.keyMatrix(layout, actions: actions))
+    }
+
+    private func sendChunks(_ packets: [Packet]) async throws {
+        for packet in packets {
+            _ = try await exchange(packet)
+            try await Task.sleep(for: pauseAfterChunk)
+        }
     }
 
     private func exchange(_ packet: Packet) async throws -> [UInt8] {

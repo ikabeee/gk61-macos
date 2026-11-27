@@ -14,6 +14,17 @@ struct KeyboardSessionTests {
         #expect(keyboard.sentPayloads == [Packet.getPSD.bytes])
     }
 
+    @Test("applyKeymap sends the 14 SetMatrix packets in order, each acknowledged by A0")
+    func appliesKeymap() async throws {
+        let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
+        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero)
+        let layout = try KeyLayout.gk61()
+
+        try await session.applyKeymap(layout, actions: [63: .remap(toUsage: 0xE0)])
+
+        #expect(keyboard.sentPayloads == Packet.keyMatrix(layout, actions: [63: .remap(toUsage: 0xE0)]).map(\.bytes))
+    }
+
     @Test("A command without a reply fails with noAcknowledgement after the timeout")
     func failsWithoutReply() async {
         let session = KeyboardSession(transport: FakeKeyboard(), acknowledgementTimeout: .milliseconds(50))
