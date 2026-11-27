@@ -7,7 +7,8 @@ struct KeyboardToggleActions {
     let install: () -> Void
 }
 
-/// Arrow mode and Cmd lock on the Keys page: their switches, and the one-time Fn-key setup on the keyboard.
+/// Arrow mode and Cmd lock on the Keys page: the arrow-mode switch, the Cmd-lock state, and the one-time
+/// Fn-key setup on the keyboard. Only the keyboard can lock Left Win, so Cmd lock has no switch here.
 struct KeyboardTogglesBox: View {
     let activeToggles: Set<KeyboardToggle>
     let areTogglesInstalled: Bool
@@ -22,9 +23,7 @@ struct KeyboardTogglesBox: View {
                     .arrowMode, title: "Arrow Mode", fnKey: "Fn+Enter",
                     detail: "/ sends ↑, Right Alt ←, App ↓ and Right Ctrl →; hold Fn for the original key. Those four keys light up white.")
                 Divider()
-                switchRow(
-                    .commandLock, title: "Cmd Lock", fnKey: "Fn+Win",
-                    detail: "Left Win (Command) does nothing, so you can't hit it by accident. The key lights up red.")
+                commandLockRow
                 Divider()
                 setupRow
             }
@@ -41,6 +40,19 @@ struct KeyboardTogglesBox: View {
             }
         }
         .toggleStyle(.switch)
+    }
+
+    private var commandLockRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Cmd Lock").font(.headline) + Text("  Fn+Win").foregroundStyle(.secondary)
+                Text("Press Fn+Win on the keyboard to lock or unlock Left Win (Command). The key lights up red while it's locked.")
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(activeToggles.contains(.commandLock) ? "Locked" : "Unlocked")
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var setupRow: some View {

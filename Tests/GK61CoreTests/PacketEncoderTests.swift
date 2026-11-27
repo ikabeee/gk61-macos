@@ -67,4 +67,10 @@ struct PacketEncoderTests {
 
         #expect(actions == [76: .remap(toUsage: 0x73), 106: .remap(toUsage: 0x72)])
     }
+
+    @Test("Cmd lock leaves Left Win to the keyboard's own Win lock: only arrow mode changes keys on the Mac")
+    func commandLockHasNoMacMapping() {
+        #expect(KeyboardToggle.macMapping(for: [.commandLock]).isEmpty)
+        #expect(KeyboardToggle.macMapping(for: [.arrowMode, .commandLock]) == ArrowMode.swappedUsages)
+    }
 }

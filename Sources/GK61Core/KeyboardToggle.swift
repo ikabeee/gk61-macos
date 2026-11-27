@@ -1,9 +1,10 @@
-/// A mode switched from the keyboard that the firmware can't hold itself. Its Fn key sends a key no Mac
-/// app uses; the app hears it, changes the keys on the Mac and lights the affected keys.
+/// A mode switched from the keyboard. Its Fn key sends a key no Mac app uses; the app hears it, changes
+/// the keys on the Mac when the firmware can't, and lights the affected keys.
 public enum KeyboardToggle: String, CaseIterable, Sendable {
     /// Fn+Enter: the keys under the right Shift become arrows.
     case arrowMode
-    /// Fn+Left Win: Left Win (Command on a Mac) stops working, like the firmware's Win lock.
+    /// Fn+Left Win: the firmware's own Win lock, which still runs when Fn+Left Win sends F23. The keyboard
+    /// stops sending Left Win (Command on a Mac); the app only lights the key.
     case commandLock
 
     /// The key pressed together with Fn.
@@ -22,11 +23,12 @@ public enum KeyboardToggle: String, CaseIterable, Sendable {
         }
     }
 
-    /// The Mac-side key mapping while the toggle is on. Usage 0 sends nothing.
+    /// The Mac-side key mapping while the toggle is on. Cmd lock has none: a second lock on the Mac would
+    /// fall out of step with the firmware's whenever the app missed a press, and then block Command for good.
     public var macMapping: [UInt8: UInt8] {
         switch self {
         case .arrowMode: ArrowMode.swappedUsages
-        case .commandLock: [Self.leftWinUsage: 0x00]
+        case .commandLock: [:]
         }
     }
 

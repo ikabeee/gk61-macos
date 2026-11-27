@@ -43,7 +43,7 @@ extension FnShortcut {
 
     private static let appCommandLock = FnShortcut(
         usage: 0xE3, legend: "🔒", name: "Lock the Command (Windows) key", group: .keyboard,
-        note: "Added by this app; lights the key red while GK61 is running")
+        note: "The keyboard locks it; GK61 lights the key red while it runs")
 
     private static let factoryLayer: [FnShortcut] = media + functionKeys + navigation + arrows + keyboard
 
