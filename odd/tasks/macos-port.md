@@ -22,7 +22,7 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 | T2 | S1, S5 | Protocol spec from OemDrv.exe (docs/protocol.md) | delegated explorer (mapping trigger: >5 sequential disassembly lookups) | done | docs/protocol.md; parent spot check GetPSD bytes @0x4379f7 |
 | T3 | S1 | Core: command framing + device info query | inline | done | RED→GREEN 3 tests; device replied PSD 0F 0B via probe |
 | T4 | S1 | Core: layout resource + normal-layer key matrix (Fn layer left untouched in v1) | inline | done | RED→GREEN 6 tests (layout, matrix framing, modifier/key remap, applyKeymap) |
-| T5 | S1 | Core: lighting modes, brightness, speed, colors | inline | pending | |
+| T5 | S1 | Core: lighting modes, brightness, speed, colors | inline | done | RED→GREEN 5 tests (mode catalog 1–31, palette/rainbow byte, per-key custom modes, applyLighting) |
 | T6 | S1 | Core: macros | inline | pending | |
 | T7 | S2, S3 | SwiftUI app | inline | pending | |
 | T8 | S2 | .app bundle packaging script | inline | pending | |

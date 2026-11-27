@@ -101,10 +101,7 @@ Maximum 512 bytes. Byte 0 is `01`, bytes 1–30 are zero, and events start at by
   | red | green | blue | yellow | magenta | cyan | white |
 
   Modes whose Cfg `LedOpt` field 4 is 8 or 9 use `0` = rainbow and index + 1 for a fixed color.
-- Custom modes (hardware `0x19`–`0x1F`):
-  - `[7] = FF`;
-  - bytes 8…59 carry 13 entries of `[index | 0x80, R, G, B]` per packet;
-  - 126 entries plus an `FF` terminator span 10 packets, each acknowledged by `AE`.
+- Custom modes (hardware `0x19`–`0x1F`): every packet repeats `AE 01 00 00 mode speed bright` with `[7] = FF`, and bytes 8…59 carry 13 entries `[slot | 0x80, R, G, B]`. All 126 matrix slots are sent in order (slots without a key are black), then an `FF` terminator: 505 bytes over 10 packets, each acknowledged by `AE` (`0x408fc0`–`0x409042`). [V]
 
 ## Firmware update (out of scope)
 

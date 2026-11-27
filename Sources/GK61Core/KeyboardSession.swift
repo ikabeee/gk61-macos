@@ -47,6 +47,10 @@ public actor KeyboardSession {
         try await sendChunks(Packet.keyMatrix(layout, actions: actions))
     }
 
+    public func applyLighting(_ lighting: Lighting) async throws {
+        try await sendChunks(Packet.lighting(lighting))
+    }
+
     private func sendChunks(_ packets: [Packet]) async throws {
         for packet in packets {
             _ = try await exchange(packet)

@@ -25,6 +25,18 @@ struct KeyboardSessionTests {
         #expect(keyboard.sentPayloads == Packet.keyMatrix(layout, actions: [63: .remap(toUsage: 0xE0)]).map(\.bytes))
     }
 
+    @Test("applyLighting sends the SetLED packets, each acknowledged by AE")
+    func appliesLighting() async throws {
+        let keyboard = FakeKeyboard { sent in Array(sent.prefix(4)) }
+        let session = KeyboardSession(transport: keyboard, pauseAfterChunk: .zero)
+        let breath = try #require(LightingMode.named("Breath"))
+        let lighting = Lighting(mode: breath, speed: 1, brightness: 4, color: .rainbow)
+
+        try await session.applyLighting(lighting)
+
+        #expect(keyboard.sentPayloads == Packet.lighting(lighting).map(\.bytes))
+    }
+
     @Test("A command without a reply fails with noAcknowledgement after the timeout")
     func failsWithoutReply() async {
         let session = KeyboardSession(transport: FakeKeyboard(), acknowledgementTimeout: .milliseconds(50))
