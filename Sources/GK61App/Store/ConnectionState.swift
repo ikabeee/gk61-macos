@@ -1,5 +1,6 @@
 import GK61Core
 import GK61HID
+import IOKit
 
 enum ConnectionState: Equatable {
     case connecting
@@ -49,6 +50,8 @@ enum DeviceErrorText {
         switch error {
         case let KeyboardSessionError.noAcknowledgement(command):
             "The keyboard didn't answer command \(hex(command)) within 2 seconds."
+        case HIDTransportError.openFailed(kIOReturnNotPermitted), HIDTransportError.sendFailed(kIOReturnNotPermitted):
+            accessBlocked
         case let HIDTransportError.openFailed(code):
             "macOS couldn't open the keyboard (IOReturn \(hex(code))). Another app may be using it."
         case let HIDTransportError.sendFailed(code):
@@ -58,7 +61,19 @@ enum DeviceErrorText {
         }
     }
 
+    /// macOS refuses keyboard access while any app has secure event input on, which a focused password field turns on.
+    private static let accessBlocked = """
+        macOS is blocking access to the keyboard. This usually happens while a password field has focus \
+        in another app, such as a browser. Click outside the password field, then reconnect. If it keeps \
+        happening, check that GK61 is on in System Settings › Privacy & Security › Input Monitoring.
+        """
+
     private static func hex(_ value: some BinaryInteger) -> String {
         "0x" + String(value, radix: 16, uppercase: true)
+    }
+
+    /// IOReturn is a signed 32-bit code; Apple documents it as unsigned hex (0xE00002E2).
+    private static func hex(_ code: IOReturn) -> String {
+        hex(UInt32(bitPattern: code))
     }
 }
