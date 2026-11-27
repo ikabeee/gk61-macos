@@ -43,20 +43,30 @@ struct KeyboardTogglesBox: View {
         .toggleStyle(.switch)
     }
 
-    @ViewBuilder
     private var setupRow: some View {
+        HStack {
+            setupStatus
+            Spacer()
+            Button(areTogglesInstalled ? "Write Fn Keys Again" : "Set Up Fn Keys", action: actions.install)
+                .disabled(installBlocker != nil)
+                .help(installBlocker ?? setupHelp)
+        }
+    }
+
+    @ViewBuilder
+    private var setupStatus: some View {
         if areTogglesInstalled {
             Label("Press Fn+Enter or Fn+Win on the keyboard to switch. Works while GK61 is running.", systemImage: "keyboard")
                 .foregroundStyle(.secondary)
         } else {
-            HStack {
-                Text("Fn+Enter and Fn+Win aren't set up on the keyboard yet.")
-                Spacer()
-                Button("Set Up Fn Keys", action: actions.install)
-                    .disabled(installBlocker != nil)
-                    .help(installBlocker ?? "Writes your applied keys to the keyboard again, with Fn+Enter and Fn+Win as switches")
-            }
+            Text("Fn+Enter and Fn+Win aren't set up on the keyboard yet.")
         }
+    }
+
+    private var setupHelp: String {
+        areTogglesInstalled
+            ? "If Fn+Enter or Fn+Win stopped switching (for example, another app rewrote the keyboard), this writes them again"
+            : "Writes your applied keys to the keyboard again, with Fn+Enter and Fn+Win as switches"
     }
 
     private func binding(for toggle: KeyboardToggle) -> Binding<Bool> {
