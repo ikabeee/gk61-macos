@@ -16,8 +16,8 @@ Branch: `feat/macos-port`. Delivery: ask-on-risk. Test runner: Swift Testing (`s
 - S6. Macros: "Wire up macros" with the "Library + assign" design — the Macros page holds named macros recorded by typing in the app, with editable steps and delays; the Keys inspector assigns a library macro to a key and picks how it repeats; one macro can go on several keys.
 - S7. Macro keys survive save and reload: the applied configuration and the macro library persist to JSON without losing macros.
 - S8. Test seams (user choice): "Recording → steps", "Saved-format round trip", "macOS key → HID table".
-- S10. Menu bar: user answered "Yes, add menu bar" to "Should GK61 keep running in the menu bar when you close its window?" — closing the window keeps the app running; a menu bar item shows and switches arrow mode, reopens the window and quits.
 - S9. Arrow mode: "Lo que necesito dentro de la app un macro que me permita cambiar entre las flechas sin apretar el fn y en su modo normal por ejemplo en el rk61 apretando fn + enter pasa a modo de flechas". Design (user choice "Fn+Enter toggle (Recommended)"): the keyboard's Fn layer gets Fn+Enter → F24; the app listens for F24 from the GK61 and toggles a macOS key mapping, scoped to the GK61, that turns / → ↑, RAlt → ←, App → ↓, RCtrl → → and back. Needs the app open; macOS only. Tests at the agreed packet-encoder seam; the IOKit listener and the hidutil mapping are adapters verified by hand.
+- S10. Menu bar: user answered "Yes, add menu bar" to "Should GK61 keep running in the menu bar when you close its window?" — closing the window keeps the app running; a menu bar item shows and switches arrow mode, reopens the window and quits.
 
 ## Tasks
 
